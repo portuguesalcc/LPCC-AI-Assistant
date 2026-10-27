@@ -13,6 +13,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // Lets the layout use iPhone safe areas (home bar) via env(safe-area-inset-*).
+  viewportFit: "cover",
   themeColor: "#dd0000",
 };
 

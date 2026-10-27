@@ -154,6 +154,8 @@ export default function Chat() {
   const [transcribing, setTranscribing] = useState(false);
   const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Shown again on every visit, so the safety notice is never hidden by default.
+  const [showInfo, setShowInfo] = useState(true);
 
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -162,7 +164,9 @@ export default function Chat() {
   const messagesRef = useRef<Message[]>([]);
   messagesRef.current = messages;
 
+  // Follow the conversation, but leave the welcome screen at the top.
   useEffect(() => {
+    if (messages.length === 0 && !busy && !transcribing) return;
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, busy, transcribing]);
 
@@ -455,20 +459,36 @@ export default function Chat() {
           </form>
         )}
 
-        <p className="disclaimer">
-          Este assistente usa inteligência artificial e pode cometer erros. Não substitui o seu
-          médico. Em caso de urgência, ligue <a href="tel:112">112</a>.
-        </p>
+        <div className="info" id="info-panel" hidden={!showInfo}>
+          <p className="disclaimer">
+            Este assistente usa inteligência artificial e pode cometer erros. Não substitui o seu
+            médico. Em caso de urgência, ligue <a href="tel:112">112</a>.
+          </p>
 
-        <footer className="footer">
-          <span>
-            Prefere falar com uma pessoa? Ligue para o geral{" "}
-            <a href={`tel:${PHONE.replace(/\s/g, "")}`}>{PHONE}</a>
-          </span>
-          <span>
-            Não guardamos as conversas · <a href="/privacidade">Privacidade</a>
-          </span>
-        </footer>
+          <footer className="footer">
+            <span>
+              Prefere falar com uma pessoa? Ligue para o geral{" "}
+              <a href={`tel:${PHONE.replace(/\s/g, "")}`}>{PHONE}</a>
+            </span>
+            <span>
+              Não guardamos as conversas · <a href="/privacidade">Privacidade</a>
+            </span>
+          </footer>
+        </div>
+
+        <button
+          className="info-toggle"
+          onClick={() => setShowInfo((v) => !v)}
+          aria-expanded={showInfo}
+          aria-controls="info-panel"
+        >
+          {showInfo ? "Ocultar informações" : "Mostrar informações"}
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+            className={showInfo ? "" : "flip"}>
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
       </div>
     </div>
   );

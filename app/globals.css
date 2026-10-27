@@ -307,10 +307,28 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   align-items: center;
   text-align: center;
   gap: 2px;
-  padding: 6px 16px 12px;
+  padding: 6px 16px 0;
   font-size: 0.8rem;
   color: var(--grey);
 }
+
+.info[hidden] { display: none; }
+.info-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 36px;
+  padding: 4px 16px calc(6px + env(safe-area-inset-bottom));
+  border: none;
+  background: none;
+  color: var(--grey);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.info-toggle:hover { color: var(--ink); }
+.info-toggle svg.flip { transform: rotate(180deg); }
 
 /* Simple pages (admin, privacy) */
 .page { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; background: var(--card); min-height: 100dvh; }
@@ -326,10 +344,28 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   /* Small screens: "Nova conversa" becomes a round + button to keep the title visible. */
   .ghost-btn { width: 38px; height: 38px; padding: 0; justify-content: center; flex-shrink: 0; }
   .ghost-label { display: none; }
-  .header .logo { height: 36px; }
   .header p { display: none; }
   .action-btn { padding: 0 14px; }
   .welcome-avatar { width: 96px; height: 96px; }
+  .welcome h2 { font-size: 1.3rem; }
+  .messages { padding: 16px 12px; gap: 14px; }
+  .composer { padding: 10px 12px 4px; gap: 8px; }
+  .bubble { max-width: 92%; padding: 10px 14px; }
+  .avatar { width: 32px; height: 32px; }
+  .listen { min-height: 36px; padding: 4px 14px; }
+  .recording-bar { margin: 10px 12px 4px; gap: 10px; padding: 8px 8px 8px 12px; }
+  .stop-btn { padding: 10px 12px; white-space: nowrap; }
+  .error { margin: 8px 12px 0; }
+  .header h1 { font-size: 1rem; }
+  .header .logo { height: 32px; }
+  /* 16px is the smallest size that stops iPhones zooming into the text box. */
+  .composer textarea { font-size: 16px; padding: 12px; }
+}
+
+/* Short screens (small phones, or when the keyboard is open): tighter welcome. */
+@media (max-height: 640px) {
+  .welcome-avatar { width: 72px; height: 72px; }
+  .welcome h2 { margin-top: 6px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
