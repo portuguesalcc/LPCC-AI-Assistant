@@ -11,7 +11,7 @@ type Message = {
 const SUGGESTIONS = [
   "Que serviços disponibiliza a Liga?",
   "Como posso pedir apoio social?",
-  "Como posso ser voluntário ou ajudar a Liga?",
+  "Como posso ser voluntário?",
 ];
 
 const PHONE = "808 255 255";
