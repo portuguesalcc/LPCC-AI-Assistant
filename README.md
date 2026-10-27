@@ -73,7 +73,7 @@ Production and Preview:
 | `CRON_SECRET` | Any long random text (Vercel uses it for the daily sync) |
 | `ADMIN_SYNC_SECRET` | A password for the `/admin` page |
 
-Optional: `GEMINI_MODEL` (default `gemini-2.5-flash`) and `HELPLINE_TEXT` (who to contact in
+Optional: `GEMINI_MODEL` (default `gemini-3.8-flash`) and `HELPLINE_TEXT` (who to contact in
 "I don't know" answers).
 
 After adding them, open **Deployments**, click **⋯** on the latest one and choose **Redeploy**.

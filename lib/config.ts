@@ -1,4 +1,4 @@
-export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
 // The File Search store is found by this display name, so no database is needed.
 export const STORE_DISPLAY_NAME = "lpcc-documentos-aprovados";
