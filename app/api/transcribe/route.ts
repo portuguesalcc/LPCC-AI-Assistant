@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { GEMINI_MODEL, MAX_AUDIO_BYTES, THINKING_CONFIG } from "@/lib/config";
-import { gemini } from "@/lib/gemini";
+import { MAX_AUDIO_BYTES, THINKING_CONFIG } from "@/lib/config";
+import { generateWithFallback } from "@/lib/gemini";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // Turns a short voice recording into text. The audio is not stored.
 export async function POST(request: Request) {
+  const started = Date.now();
   const form = await request.formData().catch(() => null);
   const audio = form?.get("audio");
   if (!(audio instanceof Blob) || audio.size === 0 || audio.size > MAX_AUDIO_BYTES) {
@@ -17,8 +18,7 @@ export async function POST(request: Request) {
     const mimeType = (audio.type || "audio/webm").split(";")[0];
     const data = Buffer.from(await audio.arrayBuffer()).toString("base64");
 
-    const response = await gemini().models.generateContent({
-      model: GEMINI_MODEL,
+    const response = await generateWithFallback({
       contents: [
         {
           role: "user",
@@ -36,9 +36,8 @@ export async function POST(request: Request) {
       config: {
         temperature: 0,
         thinkingConfig: THINKING_CONFIG,
-        httpOptions: { timeout: 45_000 },
       },
-    });
+    }, { deadline: started + (maxDuration - 5) * 1000, perAttemptMs: 20_000 });
 
     return NextResponse.json({ text: response.text?.trim() ?? "" });
   } catch (err) {

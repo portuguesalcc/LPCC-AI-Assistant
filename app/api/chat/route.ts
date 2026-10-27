@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { GEMINI_MODEL, MAX_HISTORY_MESSAGES, MAX_MESSAGE_CHARS, THINKING_CONFIG } from "@/lib/config";
-import { gemini, getStoreName } from "@/lib/gemini";
+import { MAX_HISTORY_MESSAGES, MAX_MESSAGE_CHARS, THINKING_CONFIG } from "@/lib/config";
+import { generateWithFallback, getStoreName } from "@/lib/gemini";
 import { FALLBACK_ANSWER, NO_ANSWER_TOKEN, SYSTEM_PROMPT } from "@/lib/prompt";
 
 export const runtime = "nodejs";
@@ -29,6 +29,7 @@ function parseMessages(body: unknown): ChatMessage[] | null {
 
 // Conversations are never stored or logged: the browser sends the history each time.
 export async function POST(request: Request) {
+  const started = Date.now();
   const messages = parseMessages(await request.json().catch(() => null));
   if (!messages) {
     return NextResponse.json({ error: "Mensagem inválida." }, { status: 400 });
@@ -43,8 +44,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const response = await gemini().models.generateContent({
-      model: GEMINI_MODEL,
+    const response = await generateWithFallback({
       contents: messages.map((m) => ({
         role: m.role === "assistant" ? "model" : "user",
         parts: [{ text: m.text }],
@@ -54,10 +54,8 @@ export async function POST(request: Request) {
         temperature: 0.2,
         thinkingConfig: THINKING_CONFIG,
         tools: [{ fileSearch: { fileSearchStoreNames: [storeName] } }],
-        // Fail with a friendly message rather than hitting the platform time limit.
-        httpOptions: { timeout: 45_000 },
       },
-    });
+    }, { deadline: started + (maxDuration - 5) * 1000, perAttemptMs: 25_000 });
 
     const text = response.text?.trim() ?? "";
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];

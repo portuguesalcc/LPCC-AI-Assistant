@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { secretMatches } from "@/lib/admin-auth";
-import { GEMINI_MODEL, THINKING_CONFIG } from "@/lib/config";
+import { GEMINI_MODELS, THINKING_CONFIG } from "@/lib/config";
 import { gemini, getStoreName } from "@/lib/gemini";
 import { SYSTEM_PROMPT } from "@/lib/prompt";
 
@@ -15,15 +15,8 @@ const ENV_NAMES = [
   "ADMIN_SYNC_SECRET",
 ];
 
-// Models tried side by side, to find which ones work with File Search.
-const CANDIDATES = [
-  { model: GEMINI_MODEL, lowThinking: true },
-  { model: GEMINI_MODEL, lowThinking: false },
-  { model: "gemini-3.5-flash", lowThinking: true },
-  { model: "gemini-flash-latest", lowThinking: false },
-  { model: "gemini-3-flash-preview", lowThinking: true },
-  { model: "gemini-3.1-flash-lite", lowThinking: false },
-];
+// The models the chat falls back through, tested side by side with File Search.
+const CANDIDATES = GEMINI_MODELS.map((model) => ({ model, lowThinking: true }));
 
 const TEST_TIMEOUT_MS = 25_000;
 
@@ -67,7 +60,7 @@ export async function POST(request: Request) {
   }
 
   const report: Record<string, unknown> = {
-    configuredModel: GEMINI_MODEL,
+    modelOrder: GEMINI_MODELS,
     envMissing: ENV_NAMES.filter((name) => !process.env[name]),
   };
 

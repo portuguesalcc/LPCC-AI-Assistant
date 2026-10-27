@@ -1,6 +1,13 @@
 import { ThinkingLevel } from "@google/genai";
 
-export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+// Tried in order: if a model is overloaded, slow or retired, the next one answers.
+// Tested with File Search on 2026-10-27; GEMINI_MODEL puts another model first.
+export const GEMINI_MODELS = [
+  ...(process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL] : []),
+  "gemini-3.5-flash",
+  "gemini-3-flash-preview",
+  "gemini-3.1-flash-lite",
+];
 
 // FAQ answers need little reasoning; low thinking keeps replies fast and cheap.
 export const THINKING_CONFIG = { thinkingLevel: ThinkingLevel.LOW };

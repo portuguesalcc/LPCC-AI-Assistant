@@ -1,5 +1,9 @@
-import { GoogleGenAI } from "@google/genai";
-import { STORE_DISPLAY_NAME, requireEnv } from "./config";
+import {
+  GoogleGenAI,
+  type GenerateContentParameters,
+  type GenerateContentResponse,
+} from "@google/genai";
+import { GEMINI_MODELS, STORE_DISPLAY_NAME, requireEnv } from "./config";
 
 let client: GoogleGenAI | null = null;
 
@@ -31,4 +35,33 @@ export async function getStoreName({ create }: { create: boolean }): Promise<str
   });
   cachedStoreName = created.name ?? null;
   return cachedStoreName;
+}
+
+/**
+ * Calls Gemini with each model in GEMINI_MODELS until one answers, so a busy or
+ * retired model doesn't take the assistant down. Stops trying near the deadline.
+ */
+export async function generateWithFallback(
+  params: Omit<GenerateContentParameters, "model">,
+  { deadline, perAttemptMs }: { deadline: number; perAttemptMs: number },
+): Promise<GenerateContentResponse> {
+  let lastError: unknown = new Error("No model attempted");
+  for (const model of GEMINI_MODELS) {
+    const remaining = deadline - Date.now();
+    if (remaining < 5_000) break;
+    try {
+      return await gemini().models.generateContent({
+        ...params,
+        model,
+        config: {
+          ...params.config,
+          httpOptions: { timeout: Math.min(perAttemptMs, remaining) },
+        },
+      });
+    } catch (err) {
+      lastError = err;
+      console.error(`gemini ${model} failed:`, err instanceof Error ? err.message.slice(0, 200) : "");
+    }
+  }
+  throw lastError;
 }
