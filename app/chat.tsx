@@ -325,8 +325,8 @@ export default function Chat() {
               sobre os nossos serviços e apoios.
             </p>
             <p className="how">
-              Pode <strong>escrever</strong> a sua pergunta em baixo, ou carregar em{" "}
-              <strong>Falar</strong> e dizer a pergunta em voz alta.
+              <strong>Escreve</strong> a tua pergunta, ou carrega em <strong>Falar</strong> e
+              diz a tua pergunta em voz alta.
             </p>
             <p className="suggest-label">Ou escolha uma destas perguntas:</p>
             <div className="suggestions">
