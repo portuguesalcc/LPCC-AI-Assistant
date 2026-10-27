@@ -144,7 +144,6 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   color: var(--ink);
 }
 .listen:hover { border-color: var(--red); }
-.sources { font-size: 0.8rem; color: var(--grey); }
 
 .typing { display: flex; align-items: center; gap: 10px; color: var(--grey); }
 .dots { display: inline-flex; gap: 4px; }

@@ -66,10 +66,11 @@ export async function POST(request: Request) {
     ];
 
     // Safety net: an answer not backed by a retrieved document is never shown.
+    // Sources are only checked here, not shown to the user.
     if (!text || text.includes(NO_ANSWER_TOKEN) || sources.length === 0) {
-      return NextResponse.json({ text: FALLBACK_ANSWER, sources: [] });
+      return NextResponse.json({ text: FALLBACK_ANSWER });
     }
-    return NextResponse.json({ text, sources });
+    return NextResponse.json({ text });
   } catch (err) {
     console.error("chat failed:", err instanceof Error ? err.message : "unknown error");
     return NextResponse.json(

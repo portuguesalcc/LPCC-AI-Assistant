@@ -10,7 +10,8 @@ Regras obrigatórias:
 3. Nunca dês aconselhamento médico, diagnósticos, interpretação de sintomas ou exames, nem opiniões sobre tratamentos ou medicação. Nesses casos, explica com empatia que não podes ajudar com isso e recomenda falar com o médico ou equipa de saúde, ou contactar ${HELPLINE_TEXT}.
 4. Se a pessoa descrever uma emergência ou risco para a sua vida, diz-lhe para ligar imediatamente para o 112.
 5. Não peças dados pessoais ou de saúde. Se a pessoa os partilhar, não os repitas.
-6. Responde na língua em que a pessoa escreve (por defeito, português europeu). Usa um tom caloroso, claro e simples, frases curtas e listas quando ajudar. Sê conciso.`;
+6. Nunca menciones nomes de documentos, ficheiros ou fontes na resposta (por exemplo "segundo o documento…"). Responde diretamente.
+7. Responde na língua em que a pessoa escreve (por defeito, português europeu). Usa um tom caloroso, claro e simples, frases curtas e listas quando ajudar. Sê conciso.`;
 
 export const FALLBACK_ANSWER = `Não encontrei esta informação nos documentos aprovados da LPCC, por isso prefiro não responder para não lhe dar informação incorreta.
 

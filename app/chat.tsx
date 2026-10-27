@@ -5,7 +5,6 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 type Message = {
   role: "user" | "assistant";
   text: string;
-  sources?: string[];
 };
 
 const SUGGESTIONS = [
@@ -201,7 +200,7 @@ export default function Chat() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "Ocorreu um erro. Tente novamente.");
 
-      const reply: Message = { role: "assistant", text: data.text, sources: data.sources };
+      const reply: Message = { role: "assistant", text: data.text };
       setMessages([...history, reply]);
       // Questions asked by voice are answered out loud.
       if (fromVoice) {
@@ -352,9 +351,6 @@ export default function Chat() {
                       {speakingIndex === i ? <StopIcon /> : <SpeakerIcon />}
                       {speakingIndex === i ? "Parar" : "Ouvir"}
                     </button>
-                  )}
-                  {m.sources && m.sources.length > 0 && (
-                    <span className="sources">Fonte: {m.sources.join(", ")}</span>
                   )}
                 </div>
               )}
