@@ -11,8 +11,7 @@ type Message = {
 const SUGGESTIONS = [
   "Que serviços disponibiliza a Liga?",
   "Como posso pedir apoio social?",
-  "Como marco uma consulta de Psico-Oncologia?",
-  "Como posso ser voluntário?",
+  "Como posso ser voluntário ou ajudar a Liga?",
 ];
 
 const PHONE = "808 910 132";
@@ -329,7 +328,6 @@ export default function Chat() {
               <strong>Escreve</strong> a tua pergunta, ou carrega em <strong>Falar</strong> e
               diz a tua pergunta em voz alta.
             </p>
-            <p className="suggest-label">Ou escolha uma destas perguntas:</p>
             <div className="suggestions">
               {SUGGESTIONS.map((q) => (
                 <button key={q} className="chip" onClick={() => send(q)} disabled={waiting}>
