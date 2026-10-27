@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { GEMINI_MODEL, MAX_AUDIO_BYTES } from "@/lib/config";
+import { GEMINI_MODEL, MAX_AUDIO_BYTES, THINKING_CONFIG } from "@/lib/config";
 import { gemini } from "@/lib/gemini";
 
 export const runtime = "nodejs";
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
           ],
         },
       ],
-      config: { temperature: 0 },
+      config: { temperature: 0, thinkingConfig: THINKING_CONFIG },
     });
 
     return NextResponse.json({ text: response.text?.trim() ?? "" });

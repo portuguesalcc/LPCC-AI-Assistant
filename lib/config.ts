@@ -1,4 +1,9 @@
+import { ThinkingLevel } from "@google/genai";
+
 export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+
+// FAQ answers need little reasoning; low thinking keeps replies fast and cheap.
+export const THINKING_CONFIG = { thinkingLevel: ThinkingLevel.LOW };
 
 // The File Search store is found by this display name, so no database is needed.
 export const STORE_DISPLAY_NAME = "lpcc-documentos-aprovados";

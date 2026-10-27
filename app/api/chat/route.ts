@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { GEMINI_MODEL, MAX_HISTORY_MESSAGES, MAX_MESSAGE_CHARS } from "@/lib/config";
+import { GEMINI_MODEL, MAX_HISTORY_MESSAGES, MAX_MESSAGE_CHARS, THINKING_CONFIG } from "@/lib/config";
 import { gemini, getStoreName } from "@/lib/gemini";
 import { FALLBACK_ANSWER, NO_ANSWER_TOKEN, SYSTEM_PROMPT } from "@/lib/prompt";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 type ChatMessage = { role: "user" | "assistant"; text: string };
 
@@ -52,6 +52,7 @@ export async function POST(request: Request) {
       config: {
         systemInstruction: SYSTEM_PROMPT,
         temperature: 0.2,
+        thinkingConfig: THINKING_CONFIG,
         tools: [{ fileSearch: { fileSearchStoreNames: [storeName] } }],
       },
     });

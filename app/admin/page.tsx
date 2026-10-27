@@ -15,7 +15,13 @@ export default function Admin() {
         method: "POST",
         headers: { "x-admin-secret": secret },
       });
-      setResult(JSON.stringify(await res.json(), null, 2));
+      const text = await res.text();
+      try {
+        setResult(JSON.stringify(JSON.parse(text), null, 2));
+      } catch {
+        // Vercel returns plain text when a function crashes or times out.
+        setResult(`HTTP ${res.status}\n${text}`);
+      }
     } catch (err) {
       setResult(String(err));
     } finally {

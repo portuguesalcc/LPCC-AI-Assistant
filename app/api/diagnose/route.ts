@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { secretMatches } from "@/lib/admin-auth";
-import { GEMINI_MODEL } from "@/lib/config";
+import { GEMINI_MODEL, THINKING_CONFIG } from "@/lib/config";
 import { gemini, getStoreName } from "@/lib/gemini";
 import { SYSTEM_PROMPT } from "@/lib/prompt";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const ENV_NAMES = [
   "GEMINI_API_KEY",
@@ -25,6 +25,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Palavra-passe incorreta." }, { status: 401 });
   }
 
+  const started = Date.now();
+  const elapsed = () => `${((Date.now() - started) / 1000).toFixed(1)}s`;
   const report: Record<string, unknown> = {
     model: GEMINI_MODEL,
     envMissing: ENV_NAMES.filter((name) => !process.env[name]),
@@ -40,6 +42,7 @@ export async function POST(request: Request) {
     }
     report.availableModels = models;
     report.modelAvailable = models.includes(GEMINI_MODEL);
+    report.modelsCheckedAt = elapsed();
   } catch (err) {
     report.modelsError = message(err);
   }
@@ -70,17 +73,19 @@ export async function POST(request: Request) {
         config: {
           systemInstruction: SYSTEM_PROMPT,
           temperature: 0.2,
+          thinkingConfig: THINKING_CONFIG,
           tools: [{ fileSearch: { fileSearchStoreNames: [storeName] } }],
         },
       });
       const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
       report.testAnswer = {
         ok: true,
+        took: elapsed(),
         sources: chunks.length,
         preview: (response.text ?? "").slice(0, 300),
       };
     } catch (err) {
-      report.testAnswer = { ok: false, error: message(err) };
+      report.testAnswer = { ok: false, took: elapsed(), error: message(err) };
     }
   }
 
