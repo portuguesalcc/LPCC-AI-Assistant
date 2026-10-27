@@ -16,9 +16,15 @@ export const viewport: Viewport = {
   themeColor: "#dd0000",
 };
 
+// Applies a saved light/dark choice before first paint, so the page doesn't flash.
+const THEME_SCRIPT = `try{var t=localStorage.getItem("lpcc-theme");if(t==="dark"||t==="light")document.documentElement.dataset.theme=t}catch(e){}`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-PT">
+    <html lang="pt-PT" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className={openSans.className}>{children}</body>
     </html>
   );

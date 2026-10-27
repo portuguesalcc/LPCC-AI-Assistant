@@ -3,14 +3,64 @@
   --red: #dd0000;
   --red-dark: #a80000;
   --red-soft: #fdeeee;
+  --link: #a80000;
   --grey: #5f5f5f;
-  --grey-light: #8a8a8a;
   --ink: #1f1f1f;
   --line: #e4e4e4;
   --bg: #f4f4f4;
   --card: #ffffff;
+  --surface: #ffffff;
   --bubble: #f2f2f2;
+  --field-border: #cfcfcf;
+  --error-ink: #6a0b0b;
+  --code-bg: #f4f4f4;
+  --draft-bg: #fff7d6;
+  --draft-border: #ecd27a;
+  --shadow: rgba(0, 0, 0, 0.07);
+  --focus: #1a5fd0;
   color-scheme: light;
+}
+
+/* Dark theme: follows the device unless the person picks one with the toggle. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --red-soft: #3a1515;
+    --link: #ff8a8a;
+    --grey: #b4b4b4;
+    --ink: #ededed;
+    --line: #333333;
+    --bg: #0e0e0e;
+    --card: #181818;
+    --surface: #222222;
+    --bubble: #262626;
+    --field-border: #4a4a4a;
+    --error-ink: #ffc2c2;
+    --code-bg: #222222;
+    --draft-bg: #3a3214;
+    --draft-border: #7a6526;
+    --shadow: rgba(0, 0, 0, 0.5);
+    --focus: #7fb0ff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --red-soft: #3a1515;
+  --link: #ff8a8a;
+  --grey: #b4b4b4;
+  --ink: #ededed;
+  --line: #333333;
+  --bg: #0e0e0e;
+  --card: #181818;
+  --surface: #222222;
+  --bubble: #262626;
+  --field-border: #4a4a4a;
+  --error-ink: #ffc2c2;
+  --code-bg: #222222;
+  --draft-bg: #3a3214;
+  --draft-border: #7a6526;
+  --shadow: rgba(0, 0, 0, 0.5);
+  --focus: #7fb0ff;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -26,12 +76,12 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
-a { color: var(--red-dark); font-weight: 600; }
+a { color: var(--link); font-weight: 600; }
 
 button { font: inherit; cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: 0.5; }
 
-:focus-visible { outline: 3px solid #1a5fd0; outline-offset: 2px; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -46,7 +96,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   max-width: 860px;
   margin: 0 auto;
   background: var(--card);
-  box-shadow: 0 0 30px rgba(0, 0, 0, 0.07);
+  box-shadow: 0 0 30px var(--shadow);
 }
 
 .header {
@@ -57,15 +107,16 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   border-bottom: 4px solid var(--red);
   background: var(--card);
 }
-.header .logo { height: 52px; width: auto; }
+/* The logo has a white background, so it sits on a white tile in both themes. */
+.header .logo { height: 52px; width: auto; background: #fff; border-radius: 8px; padding: 2px 4px; }
 .header-title { flex: 1; min-width: 0; border-left: 1px solid var(--line); padding-left: 14px; }
 .header h1 { font-size: 1.15rem; margin: 0; line-height: 1.2; }
 .header p { margin: 0; color: var(--grey); font-size: 0.85rem; }
 
 .ghost-btn {
   border: 2px solid var(--red);
-  color: var(--red-dark);
-  background: #fff;
+  color: var(--link);
+  background: var(--surface);
   border-radius: 999px;
   padding: 6px 14px;
   font-size: 0.85rem;
@@ -73,6 +124,19 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   white-space: nowrap;
 }
 .ghost-btn:hover { background: var(--red-soft); }
+
+.theme-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--field-border);
+  background: var(--surface);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.theme-btn:hover { border-color: var(--red); }
 
 /* Conversation */
 .messages {
@@ -94,7 +158,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .chip {
   text-align: left;
   border: 2px solid var(--line);
-  background: #fff;
+  background: var(--surface);
   border-radius: 14px;
   padding: 12px 16px;
   color: var(--ink);
@@ -136,8 +200,8 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid #cfcfcf;
-  background: #fff;
+  border: 1px solid var(--field-border);
+  background: var(--surface);
   border-radius: 999px;
   padding: 4px 12px;
   font-size: 0.85rem;
@@ -159,7 +223,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 }
 
 /* Bottom area */
-.bottom { border-top: 1px solid var(--line); background: #fff; }
+.bottom { border-top: 1px solid var(--line); background: var(--card); }
 
 .error {
   margin: 10px 16px 0;
@@ -167,7 +231,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   background: var(--red-soft);
   border-left: 4px solid var(--red);
   border-radius: 8px;
-  color: #6a0b0b;
+  color: var(--error-ink);
   font-size: 0.95rem;
 }
 
@@ -177,8 +241,10 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   resize: none;
   font: inherit;
   padding: 12px 14px;
-  border: 2px solid #cfcfcf;
+  border: 2px solid var(--field-border);
   border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
   min-height: 52px;
   max-height: 160px;
 }
@@ -243,15 +309,17 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 /* Simple pages (admin, privacy) */
 .page { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; background: var(--card); min-height: 100dvh; }
 .page h1 { font-size: 1.5rem; }
-.page input { font: inherit; padding: 10px 12px; border: 2px solid #cfcfcf; border-radius: 10px; width: 100%; max-width: 340px; }
+.page input { font: inherit; padding: 10px 12px; border: 2px solid var(--field-border); background: var(--surface); color: var(--ink); border-radius: 10px; width: 100%; max-width: 340px; }
 .page .primary { background: var(--red); color: #fff; border: none; border-radius: 10px; padding: 12px 18px; margin-top: 12px; font-weight: 700; }
-.page pre { background: #f4f4f4; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 0.8rem; }
-.draft { background: #fff7d6; border: 1px solid #ecd27a; padding: 10px 12px; border-radius: 8px; }
+.page pre { background: var(--code-bg); padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 0.8rem; }
+.draft { background: var(--draft-bg); border: 1px solid var(--draft-border); padding: 10px 12px; border-radius: 8px; }
 
 @media (max-width: 520px) {
   body { font-size: 17px; }
   .header .logo { height: 40px; }
+  .header { gap: 10px; padding: 10px 12px; }
   .header-title { padding-left: 10px; }
+  .ghost-btn { padding: 6px 10px; }
   .header p { display: none; }
   .action-btn { padding: 0 14px; }
   .welcome-avatar { width: 96px; height: 96px; }

@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import ThemeToggle from "./theme-toggle";
 
 type Message = {
   role: "user" | "assistant";
@@ -312,6 +313,7 @@ export default function Chat() {
             Nova conversa
           </button>
         )}
+        <ThemeToggle />
       </header>
 
       <main className="messages" ref={listRef} aria-live="polite">
