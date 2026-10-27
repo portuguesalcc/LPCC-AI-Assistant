@@ -14,7 +14,7 @@ const SUGGESTIONS = [
   "Como posso ser voluntário?",
 ];
 
-const PHONE = "217 264 099";
+const PHONE = "808 910 132";
 const MAX_RECORDING_SECONDS = 60;
 
 // Prefer formats Gemini accepts; browsers support different ones.
@@ -440,7 +440,7 @@ export default function Chat() {
 
         <footer className="footer">
           <span>
-            Prefere falar com uma pessoa? Ligue{" "}
+            Prefere falar com uma pessoa? Ligue para o geral{" "}
             <a href={`tel:${PHONE.replace(/\s/g, "")}`}>{PHONE}</a>
           </span>
           <span>
