@@ -4,7 +4,7 @@ import { gemini, getStoreName } from "@/lib/gemini";
 import { FALLBACK_ANSWER, NO_ANSWER_TOKEN, SYSTEM_PROMPT } from "@/lib/prompt";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 60;
 
 type ChatMessage = { role: "user" | "assistant"; text: string };
 
@@ -54,6 +54,8 @@ export async function POST(request: Request) {
         temperature: 0.2,
         thinkingConfig: THINKING_CONFIG,
         tools: [{ fileSearch: { fileSearchStoreNames: [storeName] } }],
+        // Fail with a friendly message rather than hitting the platform time limit.
+        httpOptions: { timeout: 45_000 },
       },
     });
 

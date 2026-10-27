@@ -33,7 +33,11 @@ export async function POST(request: Request) {
           ],
         },
       ],
-      config: { temperature: 0, thinkingConfig: THINKING_CONFIG },
+      config: {
+        temperature: 0,
+        thinkingConfig: THINKING_CONFIG,
+        httpOptions: { timeout: 45_000 },
+      },
     });
 
     return NextResponse.json({ text: response.text?.trim() ?? "" });

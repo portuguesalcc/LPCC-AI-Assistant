@@ -5,7 +5,7 @@ import { gemini, getStoreName } from "@/lib/gemini";
 import { SYSTEM_PROMPT } from "@/lib/prompt";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 60;
 
 const ENV_NAMES = [
   "GEMINI_API_KEY",
@@ -15,8 +15,49 @@ const ENV_NAMES = [
   "ADMIN_SYNC_SECRET",
 ];
 
+// Models tried side by side, to find which ones work with File Search.
+const CANDIDATES = [
+  { model: GEMINI_MODEL, lowThinking: true },
+  { model: GEMINI_MODEL, lowThinking: false },
+  { model: "gemini-3.5-flash", lowThinking: true },
+  { model: "gemini-flash-latest", lowThinking: false },
+  { model: "gemini-3-flash-preview", lowThinking: true },
+  { model: "gemini-3.1-flash-lite", lowThinking: false },
+];
+
+const TEST_TIMEOUT_MS = 25_000;
+
 function message(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+async function testModel(storeName: string, model: string, lowThinking: boolean) {
+  const started = Date.now();
+  const took = () => `${((Date.now() - started) / 1000).toFixed(1)}s`;
+  try {
+    const response = await gemini().models.generateContent({
+      model,
+      contents: [{ role: "user", parts: [{ text: "Como posso pedir apoio social?" }] }],
+      config: {
+        systemInstruction: SYSTEM_PROMPT,
+        temperature: 0.2,
+        ...(lowThinking ? { thinkingConfig: THINKING_CONFIG } : {}),
+        tools: [{ fileSearch: { fileSearchStoreNames: [storeName] } }],
+        httpOptions: { timeout: TEST_TIMEOUT_MS },
+      },
+    });
+    const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+    return {
+      model,
+      lowThinking,
+      ok: true,
+      took: took(),
+      sources: chunks.length,
+      preview: (response.text ?? "").slice(0, 160),
+    };
+  } catch (err) {
+    return { model, lowThinking, ok: false, took: took(), error: message(err).slice(0, 300) };
+  }
 }
 
 // Admin-only health check: runs the same steps as the chat and reports what fails.
@@ -25,27 +66,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Palavra-passe incorreta." }, { status: 401 });
   }
 
-  const started = Date.now();
-  const elapsed = () => `${((Date.now() - started) / 1000).toFixed(1)}s`;
   const report: Record<string, unknown> = {
-    model: GEMINI_MODEL,
+    configuredModel: GEMINI_MODEL,
     envMissing: ENV_NAMES.filter((name) => !process.env[name]),
   };
-
-  try {
-    const models: string[] = [];
-    const pager = await gemini().models.list({ config: { pageSize: 100 } });
-    for await (const m of pager) {
-      if (m.name?.includes("gemini") && m.supportedActions?.includes("generateContent")) {
-        models.push(m.name.replace("models/", ""));
-      }
-    }
-    report.availableModels = models;
-    report.modelAvailable = models.includes(GEMINI_MODEL);
-    report.modelsCheckedAt = elapsed();
-  } catch (err) {
-    report.modelsError = message(err);
-  }
 
   let storeName: string | null = null;
   try {
@@ -53,7 +77,6 @@ export async function POST(request: Request) {
     if (storeName) {
       const store = await gemini().fileSearchStores.get({ name: storeName });
       report.store = {
-        name: storeName,
         active: store.activeDocumentsCount ?? "0",
         pending: store.pendingDocumentsCount ?? "0",
         failed: store.failedDocumentsCount ?? "0",
@@ -66,27 +89,10 @@ export async function POST(request: Request) {
   }
 
   if (storeName) {
-    try {
-      const response = await gemini().models.generateContent({
-        model: GEMINI_MODEL,
-        contents: [{ role: "user", parts: [{ text: "Como posso pedir apoio social?" }] }],
-        config: {
-          systemInstruction: SYSTEM_PROMPT,
-          temperature: 0.2,
-          thinkingConfig: THINKING_CONFIG,
-          tools: [{ fileSearch: { fileSearchStoreNames: [storeName] } }],
-        },
-      });
-      const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
-      report.testAnswer = {
-        ok: true,
-        took: elapsed(),
-        sources: chunks.length,
-        preview: (response.text ?? "").slice(0, 300),
-      };
-    } catch (err) {
-      report.testAnswer = { ok: false, took: elapsed(), error: message(err) };
-    }
+    const name = storeName;
+    report.modelTests = await Promise.all(
+      CANDIDATES.map((c) => testModel(name, c.model, c.lowThinking)),
+    );
   }
 
   return NextResponse.json(report);
