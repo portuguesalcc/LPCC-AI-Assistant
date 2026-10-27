@@ -427,35 +427,43 @@ export default function Chat() {
               send(input);
             }}
           >
-            <textarea
-              ref={inputRef}
-              rows={1}
-              value={input}
-              maxLength={2000}
-              placeholder="Escreva a sua pergunta…"
-              aria-label="Escreva aqui a sua pergunta"
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  send(input);
-                }
-              }}
-            />
-            {input.trim() ? (
-              <button type="submit" className="action-btn send" disabled={waiting}>
-                <SendIcon /> Enviar
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="action-btn mic"
-                onClick={startRecording}
-                disabled={waiting}
-              >
-                <MicIcon /> Falar
-              </button>
-            )}
+            <div className="composer-box">
+              <textarea
+                ref={inputRef}
+                rows={1}
+                value={input}
+                maxLength={2000}
+                placeholder="Escreva a sua pergunta…"
+                aria-label="Escreva aqui a sua pergunta"
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    send(input);
+                  }
+                }}
+              />
+              {input.trim() ? (
+                <button
+                  type="submit"
+                  className="send-btn"
+                  disabled={waiting}
+                  aria-label="Enviar"
+                  title="Enviar"
+                >
+                  <SendIcon />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="mic-btn"
+                  onClick={startRecording}
+                  disabled={waiting}
+                >
+                  <MicIcon /> Falar
+                </button>
+              )}
+            </div>
           </form>
         )}
 

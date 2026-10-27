@@ -241,35 +241,63 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   font-size: 0.95rem;
 }
 
-.composer { display: flex; gap: 10px; padding: 12px 16px 6px; align-items: flex-end; }
+/* Message bar: text and button share one rounded box, like familiar chat apps. */
+.composer { padding: 12px 16px 6px; }
+.composer-box {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 6px 6px 6px 20px;
+  border: 1.5px solid var(--field-border);
+  border-radius: 28px;
+  background: var(--surface);
+  box-shadow: 0 2px 10px var(--shadow);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.composer-box:focus-within {
+  border-color: var(--red);
+  box-shadow: 0 0 0 4px rgba(221, 0, 0, 0.14);
+}
 .composer textarea {
   flex: 1;
+  min-width: 0;
   resize: none;
   font: inherit;
-  padding: 12px 14px;
-  border: 2px solid var(--field-border);
-  border-radius: 14px;
-  background: var(--surface);
-  color: var(--ink);
-  min-height: 52px;
+  line-height: 1.4;
+  padding: 11px 0;
+  min-height: 46px;
   max-height: 160px;
+  border: none;
+  background: transparent;
+  color: var(--ink);
 }
-.composer textarea:focus { border-color: var(--red); outline: none; }
+/* The box shows the focus ring, so the text area itself doesn't need one. */
+.composer textarea:focus,
+.composer textarea:focus-visible { outline: none; }
+.composer textarea::placeholder { color: var(--grey); opacity: 0.85; }
 
-.action-btn {
+.mic-btn,
+.send-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  min-height: 52px;
-  padding: 0 20px;
+  height: 46px;
   border: none;
-  border-radius: 14px;
-  font-weight: 700;
+  border-radius: 999px;
   color: #fff;
   background: var(--red);
+  font-weight: 700;
   flex-shrink: 0;
+  transition: background 0.15s ease, transform 0.1s ease;
 }
-.action-btn:hover:not(:disabled) { background: var(--red-dark); }
+.mic-btn { padding: 0 20px 0 16px; }
+.send-btn { width: 46px; }
+.send-btn svg { margin-left: 3px; }
+.mic-btn:hover:not(:disabled),
+.send-btn:hover:not(:disabled) { background: var(--red-dark); }
+.mic-btn:active:not(:disabled),
+.send-btn:active:not(:disabled) { transform: scale(0.95); }
 
 .recording-bar {
   display: flex;
@@ -278,9 +306,9 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   margin: 12px 16px 6px;
   padding: 10px 12px 10px 16px;
   background: var(--red-soft);
-  border: 2px solid var(--red);
-  border-radius: 14px;
-  min-height: 56px;
+  border: 1.5px solid var(--red);
+  border-radius: 28px;
+  min-height: 60px;
 }
 .rec-dot {
   width: 14px; height: 14px; border-radius: 50%; background: var(--red);
@@ -290,7 +318,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .rec-time { color: var(--grey); font-weight: 400; font-variant-numeric: tabular-nums; }
 .stop-btn {
   display: inline-flex; align-items: center; gap: 8px;
-  border: none; border-radius: 12px; padding: 10px 16px;
+  border: none; border-radius: 999px; height: 46px; padding: 0 18px;
   background: var(--red); color: #fff; font-weight: 700;
 }
 @keyframes pulse {
@@ -345,21 +373,21 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   .ghost-btn { width: 38px; height: 38px; padding: 0; justify-content: center; flex-shrink: 0; }
   .ghost-label { display: none; }
   .header p { display: none; }
-  .action-btn { padding: 0 14px; }
   .welcome-avatar { width: 96px; height: 96px; }
   .welcome h2 { font-size: 1.3rem; }
   .messages { padding: 16px 12px; gap: 14px; }
-  .composer { padding: 10px 12px 4px; gap: 8px; }
+  .composer { padding: 10px 12px 4px; }
+  .composer-box { padding-left: 16px; }
   .bubble { max-width: 92%; padding: 10px 14px; }
   .avatar { width: 32px; height: 32px; }
   .listen { min-height: 36px; padding: 4px 14px; }
   .recording-bar { margin: 10px 12px 4px; gap: 10px; padding: 8px 8px 8px 12px; }
-  .stop-btn { padding: 10px 12px; white-space: nowrap; }
+  .stop-btn { padding: 0 14px; white-space: nowrap; }
   .error { margin: 8px 12px 0; }
   .header h1 { font-size: 1rem; }
   .header .logo { height: 32px; }
   /* 16px is the smallest size that stops iPhones zooming into the text box. */
-  .composer textarea { font-size: 16px; padding: 12px; }
+  .composer textarea { font-size: 16px; }
 }
 
 /* Short screens (small phones, or when the keyboard is open): tighter welcome. */
@@ -369,6 +397,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .composer-box, .mic-btn, .send-btn { transition: none; }
   .rec-dot, .dots i { animation: none; }
   .theme-knob { transition: none; }
 }
