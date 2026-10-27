@@ -44,8 +44,21 @@ function linkify(text: string, keyPrefix: string): ReactNode[] {
   });
 }
 
+/**
+ * Turns Markdown links and code marks into plain text, so links show as the
+ * address itself: "[aqui](https://x.pt)" → "https://x.pt", "`a@b.pt`" → "a@b.pt".
+ */
+function plainLinks(text: string): string {
+  return text
+    .replace(/\[([^\]]*)\]\((mailto:|tel:)?([^)\s]+)\)/g, (_, label: string, scheme, target: string) =>
+      scheme === "tel:" ? label : target,
+    )
+    .replace(/`([^`]*)`/g, "$1");
+}
+
 /** Renders the small subset of Markdown the model uses (paragraphs, bullets, bold). */
-function renderText(text: string): ReactNode {
+function renderText(rawText: string): ReactNode {
+  const text = plainLinks(rawText);
   const inline = (line: string) =>
     line.split(/\*\*(.+?)\*\*/g).map((part, i) =>
       i % 2 === 1 ? <strong key={i}>{linkify(part, `b${i}`)}</strong> : (
@@ -91,7 +104,7 @@ function speak(text: string, onEnd?: () => void) {
   const synth = window.speechSynthesis;
   synth.cancel();
   const utterance = new SpeechSynthesisUtterance(
-    text.replace(/[*#•]/g, "").replace(/https?:\/\/\S+/g, "o link indicado"),
+    plainLinks(text).replace(/[*#•]/g, "").replace(/https?:\/\/\S+/g, "o link indicado"),
   );
   utterance.lang = "pt-PT";
   const voices = synth.getVoices();
