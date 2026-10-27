@@ -14,7 +14,7 @@ const SUGGESTIONS = [
   "Como posso ser voluntário ou ajudar a Liga?",
 ];
 
-const PHONE = "808 910 132";
+const PHONE = "808 255 255";
 const MAX_RECORDING_SECONDS = 60;
 
 // Prefer formats Gemini accepts; browsers support different ones.
