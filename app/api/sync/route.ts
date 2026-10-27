@@ -1,16 +1,9 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
+import { secretMatches } from "@/lib/admin-auth";
 import { syncDriveToFileSearch } from "@/lib/sync";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
-
-function secretMatches(given: string | null, expected: string | undefined): boolean {
-  if (!given || !expected) return false;
-  const a = Buffer.from(given);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
 
 async function runSync() {
   try {

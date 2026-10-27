@@ -4,14 +4,14 @@ import { useState } from "react";
 
 export default function Admin() {
   const [secret, setSecret] = useState("");
-  const [running, setRunning] = useState(false);
+  const [running, setRunning] = useState<"sync" | "diagnose" | null>(null);
   const [result, setResult] = useState<string | null>(null);
 
-  async function syncNow() {
-    setRunning(true);
+  async function call(action: "sync" | "diagnose") {
+    setRunning(action);
     setResult(null);
     try {
-      const res = await fetch("/api/sync", {
+      const res = await fetch(`/api/${action}`, {
         method: "POST",
         headers: { "x-admin-secret": secret },
       });
@@ -19,18 +19,13 @@ export default function Admin() {
     } catch (err) {
       setResult(String(err));
     } finally {
-      setRunning(false);
+      setRunning(null);
     }
   }
 
   return (
     <main className="page">
-      <h1>Sincronizar documentos</h1>
-      <p>
-        Atualiza o assistente com as alterações na pasta do Google Drive. Isto também acontece
-        automaticamente uma vez por dia. Ficheiros novos podem demorar alguns minutos a ficar
-        disponíveis depois da sincronização.
-      </p>
+      <h1>Administração do assistente</h1>
       <label htmlFor="secret">Palavra-passe de administração</label>
       <br />
       <input
@@ -40,10 +35,23 @@ export default function Admin() {
         onChange={(e) => setSecret(e.target.value)}
         autoComplete="current-password"
       />
-      <br />
-      <button className="primary" onClick={syncNow} disabled={running || !secret}>
-        {running ? "A sincronizar… (pode demorar alguns minutos)" : "Sincronizar agora"}
+
+      <h2>Sincronizar documentos</h2>
+      <p>
+        Atualiza o assistente com as alterações na pasta do Google Drive. Isto também acontece
+        automaticamente uma vez por dia. Ficheiros novos podem demorar alguns minutos a ficar
+        disponíveis depois da sincronização.
+      </p>
+      <button className="primary" onClick={() => call("sync")} disabled={!!running || !secret}>
+        {running === "sync" ? "A sincronizar… (pode demorar alguns minutos)" : "Sincronizar agora"}
       </button>
+
+      <h2>Diagnóstico</h2>
+      <p>Testa a ligação ao Gemini e aos documentos, e mostra o erro exato se algo falhar.</p>
+      <button className="primary" onClick={() => call("diagnose")} disabled={!!running || !secret}>
+        {running === "diagnose" ? "A testar…" : "Testar assistente"}
+      </button>
+
       {result && <pre>{result}</pre>}
     </main>
   );
