@@ -28,6 +28,19 @@ Browser (chat page) ──▶ /api/chat ──▶ Gemini + File Search ──▶
 | `app/api/sync` | Mirrors the Drive folder into File Search |
 | `lib/prompt.ts` | The assistant's rules (tone, safety, "I don't know" text) |
 
+## Images
+
+The site uses two optimised copies in `public/`, made from the originals in the repository root:
+
+| Used by the site | Made from | Shown |
+|---|---|---|
+| `public/lpcc-logo.png` | `LPCC Logotipo.jpg` | Header logo |
+| `public/avatar.png` | `Avatar Chatbot - Núcleo Regional do Sul.png` | Welcome screen, next to answers, browser tab icon |
+
+To change an image, replace the file in `public/` with the same name (a small PNG,
+around 200–300 px). The originals in the root are only kept as sources; the app never
+reads them.
+
 ## Safety rules
 
 1. It only answers from the approved documents. If an answer isn't backed by a retrieved
