@@ -83,7 +83,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   background: var(--card);
 }
 /* The logo has a white background, so it sits on a white tile in both themes. */
-.header .logo { height: 52px; width: auto; background: #fff; border-radius: 8px; padding: 2px 4px; }
+.header .logo { height: 64px; width: auto; background: #fff; border-radius: 8px; padding: 2px 4px; }
 .header-title { flex: 1; min-width: 0; border-left: 1px solid var(--line); padding-left: 14px; }
 .header h1 { font-size: 1.15rem; margin: 0; line-height: 1.2; }
 .header p { margin: 0; color: var(--grey); font-size: 0.85rem; }
@@ -385,7 +385,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   .stop-btn { padding: 0 14px; white-space: nowrap; }
   .error { margin: 8px 12px 0; }
   .header h1 { font-size: 1rem; }
-  .header .logo { height: 32px; }
+  .header .logo { height: 42px; padding: 1px 2px; }
   /* 16px is the smallest size that stops iPhones zooming into the text box. */
   .composer textarea { font-size: 16px; }
 }
