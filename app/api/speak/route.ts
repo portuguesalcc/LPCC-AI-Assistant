@@ -8,8 +8,8 @@ import { isValidSpeechToken } from "@/lib/speech-token";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// Each answer is read in a few parts, so this allows roughly 30 answers per 5 minutes.
-const RATE_LIMIT = { hits: 120, windowMs: 5 * 60 * 1000 };
+// Each answer is read in at most two parts, so this allows about 30 answers per 5 minutes.
+const RATE_LIMIT = { hits: 60, windowMs: 5 * 60 * 1000 };
 
 /** Gemini returns raw 16-bit PCM; browsers need a WAV header to play it. */
 function pcmToWav(pcm: Buffer, sampleRate: number): Buffer {

@@ -54,9 +54,11 @@ export function toSpeakableText(text: string): string {
 }
 
 /**
- * Splits an answer into the pieces the AI voice reads one after another.
- * The first piece is short so reading starts quickly; the rest are larger.
- * The page and the server both use this, so a piece number means the same text on both.
+ * Splits an answer into the pieces the AI voice reads one after another: a short
+ * first piece so reading starts quickly, then the rest in one piece. At most two
+ * pieces per answer keeps voice requests low (Gemini voice models have a daily
+ * request limit). The page and the server both use this, so a piece number means
+ * the same text on both.
  */
 export function speechChunks(text: string): string[] {
   const sentences = toSpeakableText(text)
@@ -64,22 +66,15 @@ export function speechChunks(text: string): string[] {
     .map((s) => s.trim())
     .filter(Boolean);
 
-  const chunks: string[] = [];
-  let current = "";
-  for (const sentence of sentences) {
-    const limit = chunks.length === 0 ? 160 : 450;
-    if (current && `${current} ${sentence}`.length > limit) {
-      chunks.push(current);
-      current = sentence;
-    } else {
-      current = current ? `${current} ${sentence}` : sentence;
-    }
-    // Start reading as soon as there is one reasonable sentence.
-    if (chunks.length === 0 && current.length >= 60) {
-      chunks.push(current);
-      current = "";
-    }
+  // First piece: sentences until it is long enough to sound natural (about one sentence).
+  let first = "";
+  let i = 0;
+  while (i < sentences.length && (first.length < 60 || first === "")) {
+    const next = first ? `${first} ${sentences[i]}` : sentences[i];
+    if (first && next.length > 160) break;
+    first = next;
+    i++;
   }
-  if (current) chunks.push(current);
-  return chunks;
+  const rest = sentences.slice(i).join(" ");
+  return rest ? [first, rest] : first ? [first] : [];
 }

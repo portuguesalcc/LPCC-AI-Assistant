@@ -65,8 +65,7 @@ reads them.
   for 15 minutes. Use a long, unique `ADMIN_SYNC_SECRET`.
 - **Voice uploads:** only audio files up to 5 MB are accepted.
 - **Read-aloud:** each answer carries a server signature; `/api/speak` only reads signed answers,
-  so it can't be used as a free text-to-speech service. About 120 parts (roughly 30 answers) per person
-  every 5 minutes.
+  so it can't be used as a free text-to-speech service. About 30 answers per person every 5 minutes.
 - **Drive sync:** files over 50 MB or in unsupported formats are skipped and listed in the result.
 
 ## Setup (use the **portuguesalcc@gmail.com** Google account)
@@ -134,9 +133,13 @@ allows one scheduled run per day. Use `/admin` when you need a change to appear 
 
 - **Rate limits are per server instance.** They stop casual abuse, not a determined attacker. For a strict limit, add a rate-limit rule in Vercel → Firewall.
 - **Strict "I don't know".** Greetings like "Olá" also get the "não encontrei" message, because only document-backed answers are shown. That's on purpose.
-- **Read-aloud uses Gemini's natural voices**, which cost a little per answer. Answers are read
-  in parts: the first sentence is prepared on its own so reading starts quickly, while the rest
-  is prepared in the background. Each answer's audio is kept while the page is open, so replaying is free.
+- **Read-aloud uses Gemini's natural voices**, which cost a little per answer. Each answer is read
+  in at most two parts (2 voice requests): the first sentence is prepared on its own so reading
+  starts quickly, while the rest is prepared in the background.
+- **Voice models have a daily request limit** (reported as about 100 per day on Gemini's first
+  paid tier). Check the real number in <https://aistudio.google.com> → **Usage / Rate limits**
+  (model `gemini-3.8-flash-tts`). When it runs out, the backup voice models are tried, then the
+  device's built-in voice, so reading never stops working. Each answer's audio is kept while the page is open, so replaying is free.
   If the AI voice fails, the device's built-in voice is used instead.
 
 ## Development
