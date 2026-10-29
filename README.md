@@ -105,7 +105,7 @@ Production and Preview:
 | `CRON_SECRET` | Any long random text (Vercel uses it for the daily sync) |
 | `ADMIN_SYNC_SECRET` | A password for the `/admin` page |
 
-Optional voice settings: `GEMINI_TTS_VOICE` (default `Sulafat`, a warm voice; any of Gemini's
+Optional voice settings: `GEMINI_TTS_VOICE` (default `Algieba`, a soft male voice; any of Gemini's
 prebuilt voices works) and `GEMINI_TTS_MODEL` (tried before the built-in list).
 
 Optional: `GEMINI_MODEL` (tried first, before the built-in list: `gemini-3.5-flash`, then `gemini-3-flash-preview`, then `gemini-3.1-flash-lite`) and `HELPLINE_TEXT` (who to contact in
