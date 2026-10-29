@@ -10,11 +10,6 @@ export const maxDuration = 60;
 
 const RATE_LIMIT = { hits: 30, windowMs: 5 * 60 * 1000 };
 
-// Read-aloud instructions; the model speaks only the text after the colon.
-const STYLE =
-  "Leia em português europeu (de Portugal), com uma voz calma, calorosa e acolhedora, " +
-  "a um ritmo tranquilo, como alguém que quer ajudar. Leia apenas o texto seguinte:";
-
 /** Gemini returns raw 16-bit PCM; browsers need a WAV header to play it. */
 function pcmToWav(pcm: Buffer, sampleRate: number): Buffer {
   const header = Buffer.alloc(44);
@@ -50,7 +45,9 @@ export async function POST(request: Request) {
   try {
     const response = await generateWithFallback(
       {
-        contents: [{ role: "user", parts: [{ text: `${STYLE}\n\n${toSpeakableText(text)}` }] }],
+        // Only the answer itself: voice models may read any added instructions out loud.
+        // The accent comes from languageCode, which is never spoken.
+        contents: [{ role: "user", parts: [{ text: toSpeakableText(text) }] }],
         config: {
           responseModalities: ["AUDIO"],
           speechConfig: {
