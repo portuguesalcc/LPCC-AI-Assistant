@@ -34,14 +34,52 @@ export function speakablePhoneNumbers(text: string): string {
 
 /** Prepares an answer to be read aloud: no Markdown, links named, phones digit by digit. */
 export function toSpeakableText(text: string): string {
+  const withPauses = plainLinks(text)
+    .split("\n")
+    .map((line) => line.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, "").trim())
+    // A list item without final punctuation still needs a pause when read aloud.
+    .map((line) => (line && !/[.!?:;,]$/.test(line) ? `${line}.` : line))
+    .join("\n");
   return speakablePhoneNumbers(
-    plainLinks(text)
+    withPauses
       .replace(/[*#•]/g, "")
-      .replace(/https?:\/\/\S+/g, "o link indicado")
+      // Keep punctuation after a link, so the sentence still ends there.
+      .replace(/https?:\/\/\S+?([.,;:!?]*)(?=\s|$)/g, "o link indicado$1")
       // Keep Portuguese contractions correct: "em o link" → "no link", etc.
       .replace(/\bem o link/g, "no link")
       .replace(/\bde o link/g, "do link")
       .replace(/\ba o link/g, "ao link")
       .replace(/\bpor o link/g, "pelo link"),
   );
+}
+
+/**
+ * Splits an answer into the pieces the AI voice reads one after another.
+ * The first piece is short so reading starts quickly; the rest are larger.
+ * The page and the server both use this, so a piece number means the same text on both.
+ */
+export function speechChunks(text: string): string[] {
+  const sentences = toSpeakableText(text)
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const chunks: string[] = [];
+  let current = "";
+  for (const sentence of sentences) {
+    const limit = chunks.length === 0 ? 160 : 450;
+    if (current && `${current} ${sentence}`.length > limit) {
+      chunks.push(current);
+      current = sentence;
+    } else {
+      current = current ? `${current} ${sentence}` : sentence;
+    }
+    // Start reading as soon as there is one reasonable sentence.
+    if (chunks.length === 0 && current.length >= 60) {
+      chunks.push(current);
+      current = "";
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
 }

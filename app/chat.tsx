@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { plainLinks, toSpeakableText } from "@/lib/speech";
+import { plainLinks, speechChunks, toSpeakableText } from "@/lib/speech";
 import ThemeToggle from "./theme-toggle";
 
 type Message = {
@@ -99,11 +99,12 @@ function canSpeak() {
   return typeof window !== "undefined" && "speechSynthesis" in window;
 }
 
-function speak(text: string, onEnd?: () => void) {
+/** Reads text with the device's built-in voice (used when the AI voice is unavailable). */
+function speak(text: string, onEnd?: () => void, alreadySpeakable = false) {
   if (!canSpeak()) return;
   const synth = window.speechSynthesis;
   synth.cancel();
-  const utterance = new SpeechSynthesisUtterance(toSpeakableText(text));
+  const utterance = new SpeechSynthesisUtterance(alreadySpeakable ? text : toSpeakableText(text));
   utterance.lang = "pt-PT";
   const voices = synth.getVoices();
   utterance.voice =
@@ -113,6 +114,23 @@ function speak(text: string, onEnd?: () => void) {
     utterance.onerror = onEnd;
   }
   synth.speak(utterance);
+}
+
+/** Asks the server for the AI-voice audio of one part of an answer. */
+async function fetchSpeech(message: Message, part: number): Promise<string> {
+  const res = await fetch("/api/speak", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: message.text, token: message.speechToken, part }),
+  });
+  if (!res.ok) throw new Error(`speak ${res.status}`);
+  return URL.createObjectURL(await res.blob());
+}
+
+/** Frees the audio kept in memory for the answers of a conversation. */
+function releaseAudio(cache: Map<number, Promise<string>[]>) {
+  cache.forEach((parts) => parts.forEach((p) => p.then(URL.revokeObjectURL, () => {})));
+  cache.clear();
 }
 
 const MicIcon = () => (
@@ -166,7 +184,8 @@ export default function Chat() {
   const requestRef = useRef<AbortController | null>(null);
   // AI voice: one audio player, reused, and the audio of each answer kept for this visit.
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioCacheRef = useRef(new Map<number, string>());
+  // For each answer, the audio of each of its parts (requested together, played in order).
+  const audioCacheRef = useRef(new Map<number, Promise<string>[]>());
   const playIdRef = useRef(0);
 
   // Follow the conversation, but leave the welcome screen at the top.
@@ -182,7 +201,7 @@ export default function Chat() {
     return () => {
       if (canSpeak()) window.speechSynthesis.cancel();
       audioRef.current?.pause();
-      cache.forEach((url) => URL.revokeObjectURL(url));
+      releaseAudio(cache);
     };
   }, []);
 
@@ -215,45 +234,66 @@ export default function Chat() {
     setPreparingIndex(null);
   }
 
-  /** Reads an answer with the natural AI voice, or the device voice if that fails. */
+  /**
+   * Reads an answer with the natural AI voice, part by part: the first (short) part
+   * starts playing while the others are still being prepared. Falls back to the
+   * device voice for whatever is left if the AI voice fails.
+   */
   async function playAnswer(index: number, message: Message) {
     stopSpeaking();
     const playId = playIdRef.current;
+    const stale = () => playId !== playIdRef.current;
     const done = () => setSpeakingIndex((c) => (c === index ? null : c));
-    const useDeviceVoice = () => {
-      if (!canSpeak()) return;
+    const parts = speechChunks(message.text);
+    const useDeviceVoice = (fromPart: number) => {
+      if (!canSpeak() || stale()) return;
       setSpeakingIndex(index);
-      speak(message.text, done);
+      speak(parts.slice(fromPart).join(" "), done, true);
     };
-    if (!message.speechToken) return useDeviceVoice();
+    if (!message.speechToken || parts.length === 0) return useDeviceVoice(0);
 
-    setPreparingIndex(index);
-    try {
-      let url = audioCacheRef.current.get(index);
-      if (!url) {
-        const res = await fetch("/api/speak", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: message.text, token: message.speechToken }),
-        });
-        if (!res.ok) throw new Error(`speak ${res.status}`);
-        url = URL.createObjectURL(await res.blob());
-        audioCacheRef.current.set(index, url);
-      }
-      if (playId !== playIdRef.current) return; // stopped or another answer chosen
-
-      if (!audioRef.current) audioRef.current = new Audio();
-      const audio = audioRef.current;
-      audio.onended = done;
-      audio.onerror = done;
-      audio.src = url;
-      await audio.play();
-      setSpeakingIndex(index);
-    } catch {
-      if (playId === playIdRef.current) useDeviceVoice();
-    } finally {
-      setPreparingIndex((c) => (c === index ? null : c));
+    let audioParts = audioCacheRef.current.get(index);
+    if (!audioParts) {
+      audioParts = parts.map((_, part) => fetchSpeech(message, part));
+      // Avoid "unhandled rejection" noise; failures are handled when each part plays.
+      audioParts.forEach((p) => p.catch(() => {}));
+      audioCacheRef.current.set(index, audioParts);
     }
+
+    if (!audioRef.current) audioRef.current = new Audio();
+    const audio = audioRef.current;
+    setPreparingIndex(index);
+    for (let part = 0; part < parts.length; part++) {
+      let url: string;
+      try {
+        url = await audioParts[part];
+      } catch {
+        // Don't keep a failed part: next time, try the AI voice again.
+        audioCacheRef.current.delete(index);
+        setPreparingIndex((c) => (c === index ? null : c));
+        return useDeviceVoice(part);
+      }
+      if (stale()) return;
+
+      // Ends when the part finishes, fails, or is paused by "Parar".
+      const ended = new Promise<void>((resolve) => {
+        audio.onended = () => resolve();
+        audio.onerror = () => resolve();
+        audio.onpause = () => resolve();
+      });
+      audio.src = url;
+      try {
+        await audio.play();
+      } catch {
+        setPreparingIndex((c) => (c === index ? null : c));
+        return useDeviceVoice(part);
+      }
+      setPreparingIndex((c) => (c === index ? null : c));
+      setSpeakingIndex(index);
+      await ended;
+      if (stale()) return;
+    }
+    done();
   }
 
   function toggleSpeak(index: number, message: Message) {
@@ -317,8 +357,7 @@ export default function Chat() {
     requestRef.current = null;
     setBusy(false);
     stopSpeaking();
-    audioCacheRef.current.forEach((url) => URL.revokeObjectURL(url));
-    audioCacheRef.current.clear();
+    releaseAudio(audioCacheRef.current);
     setMessages([]);
     setInput("");
     setError(null);

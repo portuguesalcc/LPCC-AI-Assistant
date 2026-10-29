@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { MAX_SPEECH_CHARS, TTS_MODELS, TTS_VOICE } from "@/lib/config";
 import { generateWithFallback } from "@/lib/gemini";
 import { clientIp, isRateLimited } from "@/lib/rate-limit";
-import { toSpeakableText } from "@/lib/speech";
+import { speechChunks } from "@/lib/speech";
 import { isValidSpeechToken } from "@/lib/speech-token";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const RATE_LIMIT = { hits: 30, windowMs: 5 * 60 * 1000 };
+// Each answer is read in a few parts, so this allows roughly 30 answers per 5 minutes.
+const RATE_LIMIT = { hits: 120, windowMs: 5 * 60 * 1000 };
 
 /** Gemini returns raw 16-bit PCM; browsers need a WAV header to play it. */
 function pcmToWav(pcm: Buffer, sampleRate: number): Buffer {
@@ -29,7 +30,8 @@ function pcmToWav(pcm: Buffer, sampleRate: number): Buffer {
   return Buffer.concat([header, pcm]);
 }
 
-// Reads one of the assistant's answers aloud with a natural Gemini voice.
+// Reads one part of an assistant answer aloud with a natural Gemini voice.
+// The page asks for the parts in order, so reading starts before the whole answer is ready.
 export async function POST(request: Request) {
   const started = Date.now();
   if (isRateLimited(`speak:${clientIp(request)}`, RATE_LIMIT.hits, RATE_LIMIT.windowMs)) {
@@ -41,13 +43,17 @@ export async function POST(request: Request) {
   if (!text || text.length > MAX_SPEECH_CHARS || !isValidSpeechToken(text, body?.token)) {
     return NextResponse.json({ error: "Pedido inválido." }, { status: 400 });
   }
+  const part = speechChunks(text)[Number.isInteger(body?.part) ? body.part : 0];
+  if (!part) {
+    return NextResponse.json({ error: "Pedido inválido." }, { status: 400 });
+  }
 
   try {
     const response = await generateWithFallback(
       {
         // Only the answer itself: voice models may read any added instructions out loud.
         // The accent comes from languageCode, which is never spoken.
-        contents: [{ role: "user", parts: [{ text: toSpeakableText(text) }] }],
+        contents: [{ role: "user", parts: [{ text: part }] }],
         config: {
           responseModalities: ["AUDIO"],
           speechConfig: {
