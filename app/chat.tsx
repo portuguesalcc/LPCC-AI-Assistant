@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { speakablePhoneNumbers } from "@/lib/speech";
 import ThemeToggle from "./theme-toggle";
 
 type Message = {
@@ -104,7 +105,16 @@ function speak(text: string, onEnd?: () => void) {
   const synth = window.speechSynthesis;
   synth.cancel();
   const utterance = new SpeechSynthesisUtterance(
-    plainLinks(text).replace(/[*#•]/g, "").replace(/https?:\/\/\S+/g, "o link indicado"),
+    speakablePhoneNumbers(
+      plainLinks(text)
+        .replace(/[*#•]/g, "")
+        .replace(/https?:\/\/\S+/g, "o link indicado")
+        // Keep Portuguese contractions correct: "em o link" → "no link", etc.
+        .replace(/\bem o link/g, "no link")
+        .replace(/\bde o link/g, "do link")
+        .replace(/\ba o link/g, "ao link")
+        .replace(/\bpor o link/g, "pelo link"),
+    ),
   );
   utterance.lang = "pt-PT";
   const voices = synth.getVoices();
@@ -351,8 +361,8 @@ export default function Chat() {
               sobre os nossos serviços e apoios.
             </p>
             <p className="how">
-              <strong>Escreve</strong> a tua pergunta, ou carrega em <strong>Falar</strong> e
-              diz a tua pergunta em voz alta.
+              <strong>Escreva</strong> a sua pergunta ou carregue em <strong>Falar</strong> e
+              diga a sua pergunta em voz alta.
             </p>
             <div className="suggestions">
               {SUGGESTIONS.map((q) => (
