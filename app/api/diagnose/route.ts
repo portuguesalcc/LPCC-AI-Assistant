@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { secretMatches } from "@/lib/admin-auth";
+import { rejectUnlessSecret } from "@/lib/admin-auth";
 import { GEMINI_MODELS, THINKING_CONFIG } from "@/lib/config";
 import { gemini, getStoreName } from "@/lib/gemini";
 import { SYSTEM_PROMPT } from "@/lib/prompt";
@@ -15,16 +15,14 @@ const ENV_NAMES = [
   "ADMIN_SYNC_SECRET",
 ];
 
-// The models the chat falls back through, tested side by side with File Search.
-const CANDIDATES = GEMINI_MODELS.map((model) => ({ model, lowThinking: true }));
-
 const TEST_TIMEOUT_MS = 25_000;
 
 function message(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-async function testModel(storeName: string, model: string, lowThinking: boolean) {
+// Tries one of the chat's models with File Search, exactly as the chat calls it.
+async function testModel(storeName: string, model: string) {
   const started = Date.now();
   const took = () => `${((Date.now() - started) / 1000).toFixed(1)}s`;
   try {
@@ -34,7 +32,7 @@ async function testModel(storeName: string, model: string, lowThinking: boolean)
       config: {
         systemInstruction: SYSTEM_PROMPT,
         temperature: 0.2,
-        ...(lowThinking ? { thinkingConfig: THINKING_CONFIG } : {}),
+        thinkingConfig: THINKING_CONFIG,
         tools: [{ fileSearch: { fileSearchStoreNames: [storeName] } }],
         httpOptions: { timeout: TEST_TIMEOUT_MS },
       },
@@ -42,22 +40,24 @@ async function testModel(storeName: string, model: string, lowThinking: boolean)
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
     return {
       model,
-      lowThinking,
       ok: true,
       took: took(),
       sources: chunks.length,
       preview: (response.text ?? "").slice(0, 160),
     };
   } catch (err) {
-    return { model, lowThinking, ok: false, took: took(), error: message(err).slice(0, 300) };
+    return { model, ok: false, took: took(), error: message(err).slice(0, 300) };
   }
 }
 
 // Admin-only health check: runs the same steps as the chat and reports what fails.
 export async function POST(request: Request) {
-  if (!secretMatches(request.headers.get("x-admin-secret"), process.env.ADMIN_SYNC_SECRET)) {
-    return NextResponse.json({ error: "Palavra-passe incorreta." }, { status: 401 });
-  }
+  const denied = rejectUnlessSecret(
+    request,
+    request.headers.get("x-admin-secret"),
+    process.env.ADMIN_SYNC_SECRET,
+  );
+  if (denied) return denied;
 
   const report: Record<string, unknown> = {
     modelOrder: GEMINI_MODELS,
@@ -83,9 +83,8 @@ export async function POST(request: Request) {
 
   if (storeName) {
     const name = storeName;
-    report.modelTests = await Promise.all(
-      CANDIDATES.map((c) => testModel(name, c.model, c.lowThinking)),
-    );
+    // The models the chat falls back through, tested side by side.
+    report.modelTests = await Promise.all(GEMINI_MODELS.map((model) => testModel(name, model)));
   }
 
   return NextResponse.json(report);

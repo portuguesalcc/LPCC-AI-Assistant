@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
   // Microphone is needed for voice chat; everything else stays locked down.
   async headers() {
     return [

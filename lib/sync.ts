@@ -1,6 +1,6 @@
 import { DocumentState, type Document } from "@google/genai";
 import { requireEnv } from "./config";
-import { downloadFile, isSupported, listFolderRecursive } from "./drive";
+import { downloadFile, isSupported, isTooLarge, listFolderRecursive } from "./drive";
 import { gemini, getStoreName } from "./gemini";
 
 const DRIVE_ID_KEY = "drive_file_id";
@@ -40,9 +40,15 @@ export async function syncDriveToFileSearch(deadline: number): Promise<SyncRepor
   const storeName = (await getStoreName({ create: true }))!;
   const allFiles = await listFolderRecursive(requireEnv("GOOGLE_DRIVE_FOLDER_ID"));
   const files = allFiles.filter((f) => {
-    if (isSupported(f)) return true;
-    report.skipped.push(f.name);
-    return false;
+    if (!isSupported(f)) {
+      report.skipped.push(`${f.name} (formato não suportado)`);
+      return false;
+    }
+    if (isTooLarge(f)) {
+      report.skipped.push(`${f.name} (ficheiro com mais de 50 MB)`);
+      return false;
+    }
+    return true;
   });
   const driveIds = new Set(files.map((f) => f.id));
 
@@ -79,6 +85,16 @@ export async function syncDriveToFileSearch(deadline: number): Promise<SyncRepor
         d.state !== DocumentState.STATE_FAILED,
     );
     if (current) {
+      // Remove leftover older copies (e.g. a previous run uploaded but couldn't delete),
+      // so the assistant never answers from an outdated version.
+      for (const stale of existing.filter((d) => d !== current)) {
+        try {
+          await deleteDoc(stale);
+          report.removed.push(`${stale.displayName ?? stale.name} (versão antiga)`);
+        } catch (err) {
+          report.errors.push(`Remover ${stale.displayName}: ${String(err)}`);
+        }
+      }
       report.unchanged++;
       continue;
     }

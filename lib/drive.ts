@@ -9,7 +9,12 @@ export type DriveFile = {
   name: string;
   mimeType: string;
   modifiedTime: string;
+  /** Bytes; Google Docs/Sheets/Slides don't report a size. */
+  size?: string;
 };
+
+// Larger files are skipped: they would not fit comfortably in the sync function's memory.
+export const MAX_FILE_BYTES = 50 * 1024 * 1024;
 
 // Google Workspace files can't be downloaded directly; they are exported instead.
 const EXPORTS: Record<string, string> = {
@@ -47,6 +52,10 @@ export function isSupported(file: DriveFile): boolean {
   return file.mimeType in EXPORTS || SUPPORTED_UPLOADS.has(file.mimeType);
 }
 
+export function isTooLarge(file: DriveFile): boolean {
+  return Number(file.size ?? 0) > MAX_FILE_BYTES;
+}
+
 /** Lists every file in the folder and its subfolders (trashed files excluded). */
 export async function listFolderRecursive(folderId: string): Promise<DriveFile[]> {
   const files: DriveFile[] = [];
@@ -57,8 +66,8 @@ export async function listFolderRecursive(folderId: string): Promise<DriveFile[]
     let pageToken: string | undefined;
     do {
       const params = new URLSearchParams({
-        q: `'${parent}' in parents and trashed = false`,
-        fields: "nextPageToken, files(id, name, mimeType, modifiedTime)",
+        q: `'${parent.replace(/['\\]/g, "\\$&")}' in parents and trashed = false`,
+        fields: "nextPageToken, files(id, name, mimeType, modifiedTime, size)",
         pageSize: "200",
         supportsAllDrives: "true",
         includeItemsFromAllDrives: "true",

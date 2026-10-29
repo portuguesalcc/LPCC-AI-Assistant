@@ -1,21 +1,46 @@
 import { NextResponse } from "next/server";
 import { MAX_AUDIO_BYTES, THINKING_CONFIG } from "@/lib/config";
 import { generateWithFallback } from "@/lib/gemini";
+import { clientIp, isRateLimited } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+const RATE_LIMIT = { hits: 15, windowMs: 5 * 60 * 1000 };
+
+// Only real voice recordings are accepted, so this can't be used to analyse other files.
+const AUDIO_TYPES = new Set([
+  "audio/webm",
+  "audio/ogg",
+  "audio/mp4",
+  "audio/x-m4a",
+  "audio/mpeg",
+  "audio/wav",
+  "audio/aac",
+]);
+
 // Turns a short voice recording into text. The audio is not stored.
 export async function POST(request: Request) {
   const started = Date.now();
+  if (isRateLimited(`voice:${clientIp(request)}`, RATE_LIMIT.hits, RATE_LIMIT.windowMs)) {
+    return NextResponse.json(
+      { error: "Fez muitos pedidos seguidos. Aguarde alguns minutos e tente novamente." },
+      { status: 429 },
+    );
+  }
   const form = await request.formData().catch(() => null);
   const audio = form?.get("audio");
-  if (!(audio instanceof Blob) || audio.size === 0 || audio.size > MAX_AUDIO_BYTES) {
+  const mimeType = audio instanceof Blob ? (audio.type || "audio/webm").split(";")[0] : "";
+  if (
+    !(audio instanceof Blob) ||
+    audio.size === 0 ||
+    audio.size > MAX_AUDIO_BYTES ||
+    !AUDIO_TYPES.has(mimeType)
+  ) {
     return NextResponse.json({ error: "Gravação inválida ou demasiado longa." }, { status: 400 });
   }
 
   try {
-    const mimeType = (audio.type || "audio/webm").split(";")[0];
     const data = Buffer.from(await audio.arrayBuffer()).toString("base64");
 
     const response = await generateWithFallback({

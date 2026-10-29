@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { secretMatches } from "@/lib/admin-auth";
+import { rejectUnlessSecret } from "@/lib/admin-auth";
 import { syncDriveToFileSearch } from "@/lib/sync";
 
 export const runtime = "nodejs";
@@ -22,16 +22,11 @@ async function runSync() {
 // Daily Vercel Cron job. Vercel sends "Authorization: Bearer <CRON_SECRET>".
 export async function GET(request: Request) {
   const token = request.headers.get("authorization")?.replace(/^Bearer /, "") ?? null;
-  if (!secretMatches(token, process.env.CRON_SECRET)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  return runSync();
+  return rejectUnlessSecret(request, token, process.env.CRON_SECRET) ?? runSync();
 }
 
 // "Sync now" button on /admin.
 export async function POST(request: Request) {
-  if (!secretMatches(request.headers.get("x-admin-secret"), process.env.ADMIN_SYNC_SECRET)) {
-    return NextResponse.json({ error: "Palavra-passe incorreta." }, { status: 401 });
-  }
-  return runSync();
+  const secret = request.headers.get("x-admin-secret");
+  return rejectUnlessSecret(request, secret, process.env.ADMIN_SYNC_SECRET) ?? runSync();
 }

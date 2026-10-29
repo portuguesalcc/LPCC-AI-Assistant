@@ -25,20 +25,25 @@ const RECORDING_TYPES = ["audio/ogg;codecs=opus", "audio/webm;codecs=opus", "aud
 function linkify(text: string, keyPrefix: string): ReactNode[] {
   return text.split(/(https?:\/\/[^\s)]+|[\w.+-]+@[\w-]+\.[\w.-]+)/g).map((part, i) => {
     const key = `${keyPrefix}-${i}`;
+    // Punctuation right after a link ends the sentence; keep it as text.
+    const trailing = part.match(/[.,;:!?]+$/)?.[0] ?? "";
+    const target = part.slice(0, part.length - trailing.length);
     if (/^https?:\/\//.test(part)) {
-      const href = part.replace(/[.,;:]+$/, "");
       return (
-        <a key={key} href={href} target="_blank" rel="noopener noreferrer">
-          {href}
-        </a>
+        <Fragment key={key}>
+          <a href={target} target="_blank" rel="noopener noreferrer">
+            {target}
+          </a>
+          {trailing}
+        </Fragment>
       );
     }
     if (/^[\w.+-]+@[\w-]+\.[\w.-]+$/.test(part)) {
-      const email = part.replace(/[.,;:]+$/, "");
       return (
-        <a key={key} href={`mailto:${email}`}>
-          {email}
-        </a>
+        <Fragment key={key}>
+          <a href={`mailto:${target}`}>{target}</a>
+          {trailing}
+        </Fragment>
       );
     }
     return <Fragment key={key}>{part}</Fragment>;
@@ -173,6 +178,8 @@ export default function Chat() {
   const timerRef = useRef<number | null>(null);
   const messagesRef = useRef<Message[]>([]);
   messagesRef.current = messages;
+  // Lets "Nova conversa" cancel an answer that is still loading.
+  const requestRef = useRef<AbortController | null>(null);
 
   // Follow the conversation, but leave the welcome screen at the top.
   useEffect(() => {
@@ -210,11 +217,14 @@ export default function Chat() {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
 
-    const history = [...messagesRef.current, { role: "user" as const, text: trimmed }];
+    const before = messagesRef.current;
+    const history = [...before, { role: "user" as const, text: trimmed }];
     setMessages(history);
     setInput("");
     setError(null);
     setBusy(true);
+    const controller = new AbortController();
+    requestRef.current = controller;
 
     try {
       const res = await fetch("/api/chat", {
@@ -223,8 +233,10 @@ export default function Chat() {
         body: JSON.stringify({
           messages: history.map(({ role, text }) => ({ role, text })),
         }),
+        signal: controller.signal,
       });
       const data = await res.json().catch(() => ({}));
+      if (controller.signal.aborted) return;
       if (!res.ok) throw new Error(data.error ?? "Ocorreu um erro. Tente novamente.");
 
       const reply: Message = { role: "assistant", text: data.text };
@@ -236,6 +248,10 @@ export default function Chat() {
         speak(data.text, () => setSpeakingIndex((c) => (c === index ? null : c)));
       }
     } catch (err) {
+      if (controller.signal.aborted) return;
+      // Put the question back in the box so it can be sent again.
+      setMessages(before);
+      setInput(trimmed);
       setError(
         err instanceof TypeError
           ? "Sem ligação à internet. Verifique a ligação e tente novamente."
@@ -244,11 +260,17 @@ export default function Chat() {
             : "Ocorreu um erro. Tente novamente.",
       );
     } finally {
-      setBusy(false);
+      if (requestRef.current === controller) {
+        requestRef.current = null;
+        setBusy(false);
+      }
     }
   }
 
   function newConversation() {
+    requestRef.current?.abort();
+    requestRef.current = null;
+    setBusy(false);
     if (canSpeak()) window.speechSynthesis.cancel();
     setSpeakingIndex(null);
     setMessages([]);

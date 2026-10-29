@@ -13,7 +13,7 @@ It answers **only** from documents approved by LPCC and stored in a Google Drive
 ```
 Google Drive folder ──(daily sync /api/sync)──▶ Gemini File Search store
                                                        │
-Browser (chat page) ──▶ /api/chat ──▶ Gemini + File Search ──▶ answer + source
+Browser (chat page) ──▶ /api/chat ──▶ Gemini + File Search ──▶ answer
         │
         └── mic ──▶ /api/transcribe ──▶ Gemini (speech → text)
 ```
@@ -21,11 +21,13 @@ Browser (chat page) ──▶ /api/chat ──▶ Gemini + File Search ──▶
 | Path | What it is |
 |---|---|
 | `/` | The chat page |
-| `/admin` | "Sync now" button (password protected) |
-| `/privacidade` | Privacy notice (**draft, LPCC must review**) |
+| `/admin` | "Sincronizar agora" (sync now) and "Testar assistente" (diagnostics), password protected |
+| `/privacidade` | Privacy notice (should be reviewed by LPCC's data protection officer) |
 | `app/api/chat` | Answers questions using File Search |
 | `app/api/transcribe` | Turns voice recordings into text |
 | `app/api/sync` | Mirrors the Drive folder into File Search |
+| `app/api/diagnose` | Admin health check: tests each Gemini model with File Search |
+| `lib/speech.ts` | Makes phone numbers read digit by digit in voice answers |
 | `lib/prompt.ts` | The assistant's rules (tone, safety, "I don't know" text) |
 
 ## Images
@@ -48,7 +50,20 @@ reads them.
    phone numbers, even if the AI wrote something.
 2. No medical advice, diagnoses or treatment opinions.
 3. Emergencies point to 112.
-4. A disclaimer is always visible.
+4. A disclaimer is shown on every visit (people can hide it for that visit).
+5. Sources are checked on the server but not shown to users.
+
+## Security
+
+- **No data stored:** conversations and recordings are never saved or logged; only error
+  messages (without user text) appear in the Vercel logs.
+- **Secrets stay in Vercel:** keys live only in environment variables, never in the code.
+  The Drive access is read-only.
+- **Rate limits:** about 20 chat questions and 15 voice recordings per person every 5 minutes.
+- **Admin password:** after 10 wrong attempts from the same connection, admin access is blocked
+  for 15 minutes. Use a long, unique `ADMIN_SYNC_SECRET`.
+- **Voice uploads:** only audio files up to 5 MB are accepted.
+- **Drive sync:** files over 50 MB or in unsupported formats are skipped and listed in the result.
 
 ## Setup (use the **portuguesalcc@gmail.com** Google account)
 
@@ -101,16 +116,16 @@ allows one scheduled run per day. Use `/admin` when you need a change to appear 
 
 ## Testing checklist
 
-- [ ] Each suggested question gets a correct answer that lists **Fonte: …**
+- [ ] Each suggested question gets a correct answer, with links and phone numbers from the documents
 - [ ] A question that isn't in the documents (e.g. "Qual é a capital de França?") gives the "não encontrei" message
 - [ ] A medical question ("Devo parar a quimioterapia?") is declined politely
 - [ ] Voice works in **Chrome**, **Safari (iPhone)** and **Edge**. Recording formats differ between browsers; report any that fail.
-- [ ] "Ouvir" reads the answer in Portuguese (the voice depends on the device)
+- [ ] "Ouvir" reads the answer in Portuguese, with phone numbers digit by digit (the voice depends on the device)
 - [ ] Edit a document in Drive, click **Sincronizar agora**, and the answer changes
 
 ## Known limits
 
-- **No rate limiting.** Anyone with the link can use it, and each message costs Gemini credits. If abuse becomes a problem, add a rate-limit rule in Vercel → Firewall.
+- **Rate limits are per server instance.** They stop casual abuse, not a determined attacker. For a strict limit, add a rate-limit rule in Vercel → Firewall.
 - **Strict "I don't know".** Greetings like "Olá" also get the "não encontrei" message, because only document-backed answers are shown. That's on purpose.
 - **Read-aloud voice quality depends on the device.** It uses the browser's built-in voices.
 

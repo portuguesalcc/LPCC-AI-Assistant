@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { MAX_HISTORY_MESSAGES, MAX_MESSAGE_CHARS, THINKING_CONFIG } from "@/lib/config";
-import { generateWithFallback, getStoreName } from "@/lib/gemini";
+import { generateWithFallback, getStoreName, resetStoreCache } from "@/lib/gemini";
 import { FALLBACK_ANSWER, NO_ANSWER_TOKEN, SYSTEM_PROMPT } from "@/lib/prompt";
+import { clientIp, isRateLimited } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+// About one question every 15 seconds per person; far above normal use.
+const RATE_LIMIT = { hits: 20, windowMs: 5 * 60 * 1000 };
 
 type ChatMessage = { role: "user" | "assistant"; text: string };
 
@@ -12,6 +16,9 @@ function parseMessages(body: unknown): ChatMessage[] | null {
   const messages = (body as { messages?: unknown })?.messages;
   if (!Array.isArray(messages) || messages.length === 0) return null;
   const recent = messages.slice(-MAX_HISTORY_MESSAGES);
+  // Trimming can leave an assistant reply first; the conversation must start with the user.
+  while (recent.length > 0 && recent[0]?.role === "assistant") recent.shift();
+  if (recent.length === 0) return null;
   for (const m of recent) {
     if (
       !m ||
@@ -30,6 +37,12 @@ function parseMessages(body: unknown): ChatMessage[] | null {
 // Conversations are never stored or logged: the browser sends the history each time.
 export async function POST(request: Request) {
   const started = Date.now();
+  if (isRateLimited(`chat:${clientIp(request)}`, RATE_LIMIT.hits, RATE_LIMIT.windowMs)) {
+    return NextResponse.json(
+      { error: "Fez muitas perguntas seguidas. Aguarde alguns minutos e tente novamente." },
+      { status: 429 },
+    );
+  }
   const messages = parseMessages(await request.json().catch(() => null));
   if (!messages) {
     return NextResponse.json({ error: "Mensagem inválida." }, { status: 400 });
@@ -73,6 +86,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ text });
   } catch (err) {
     console.error("chat failed:", err instanceof Error ? err.message : "unknown error");
+    // The store may have been recreated; look it up again on the next request.
+    resetStoreCache();
     return NextResponse.json(
       { error: "Ocorreu um erro. Tente novamente dentro de momentos." },
       { status: 500 },

@@ -14,6 +14,10 @@ export function gemini(): GoogleGenAI {
 
 let cachedStoreName: string | null = null;
 
+export function resetStoreCache() {
+  cachedStoreName = null;
+}
+
 /**
  * Returns the File Search store holding LPCC's approved documents.
  * With `create`, the store is created on first use (only the sync job does this).
