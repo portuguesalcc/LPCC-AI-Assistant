@@ -3,6 +3,7 @@ import { MAX_HISTORY_MESSAGES, MAX_MESSAGE_CHARS, THINKING_CONFIG } from "@/lib/
 import { generateWithFallback, getStoreName, resetStoreCache } from "@/lib/gemini";
 import { FALLBACK_ANSWER, NO_ANSWER_TOKEN, SYSTEM_PROMPT } from "@/lib/prompt";
 import { clientIp, isRateLimited } from "@/lib/rate-limit";
+import { signSpeech } from "@/lib/speech-token";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -80,10 +81,10 @@ export async function POST(request: Request) {
 
     // Safety net: an answer not backed by a retrieved document is never shown.
     // Sources are only checked here, not shown to the user.
-    if (!text || text.includes(NO_ANSWER_TOKEN) || sources.length === 0) {
-      return NextResponse.json({ text: FALLBACK_ANSWER });
-    }
-    return NextResponse.json({ text });
+    const answer =
+      !text || text.includes(NO_ANSWER_TOKEN) || sources.length === 0 ? FALLBACK_ANSWER : text;
+    // The token lets the page ask /api/speak to read this exact answer aloud.
+    return NextResponse.json({ text: answer, speechToken: signSpeech(answer) });
   } catch (err) {
     console.error("chat failed:", err instanceof Error ? err.message : "unknown error");
     // The store may have been recreated; look it up again on the next request.

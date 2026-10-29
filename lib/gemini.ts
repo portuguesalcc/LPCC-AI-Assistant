@@ -42,15 +42,19 @@ export async function getStoreName({ create }: { create: boolean }): Promise<str
 }
 
 /**
- * Calls Gemini with each model in GEMINI_MODELS until one answers, so a busy or
+ * Calls Gemini with each model in turn (GEMINI_MODELS by default) until one answers, so a busy or
  * retired model doesn't take the assistant down. Stops trying near the deadline.
  */
 export async function generateWithFallback(
   params: Omit<GenerateContentParameters, "model">,
-  { deadline, perAttemptMs }: { deadline: number; perAttemptMs: number },
+  {
+    deadline,
+    perAttemptMs,
+    models = GEMINI_MODELS,
+  }: { deadline: number; perAttemptMs: number; models?: string[] },
 ): Promise<GenerateContentResponse> {
   let lastError: unknown = new Error("No model attempted");
-  for (const model of GEMINI_MODELS) {
+  for (const model of models) {
     const remaining = deadline - Date.now();
     if (remaining < 5_000) break;
     try {

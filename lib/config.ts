@@ -9,6 +9,18 @@ export const GEMINI_MODELS = [
   "gemini-3.1-flash-lite",
 ];
 
+// Natural-sounding voices for "Ouvir", tried in order like the chat models.
+// GEMINI_TTS_MODEL puts another model first.
+export const TTS_MODELS = [
+  ...(process.env.GEMINI_TTS_MODEL ? [process.env.GEMINI_TTS_MODEL] : []),
+  "gemini-3.8-flash-tts",
+  "gemini-3.1-flash-tts-preview",
+  "gemini-2.5-flash-preview-tts",
+];
+// A warm, calm voice; GEMINI_TTS_VOICE picks another of Gemini's prebuilt voices.
+export const TTS_VOICE = process.env.GEMINI_TTS_VOICE || "Sulafat";
+export const MAX_SPEECH_CHARS = 3000;
+
 // FAQ answers need little reasoning; low thinking keeps replies fast and cheap.
 export const THINKING_CONFIG = { thinkingLevel: ThinkingLevel.LOW };
 

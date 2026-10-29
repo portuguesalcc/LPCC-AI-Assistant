@@ -1,13 +1,19 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { speakablePhoneNumbers } from "@/lib/speech";
+import { plainLinks, toSpeakableText } from "@/lib/speech";
 import ThemeToggle from "./theme-toggle";
 
 type Message = {
   role: "user" | "assistant";
   text: string;
+  /** Server signature that allows this answer to be read by the AI voice. */
+  speechToken?: string;
 };
+
+// A tiny silent clip, played during a tap so phones allow audio to start later.
+const SILENT_WAV =
+  "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
 
 const SUGGESTIONS = [
   "Que serviços disponibiliza a Liga?",
@@ -48,18 +54,6 @@ function linkify(text: string, keyPrefix: string): ReactNode[] {
     }
     return <Fragment key={key}>{part}</Fragment>;
   });
-}
-
-/**
- * Turns Markdown links and code marks into plain text, so links show as the
- * address itself: "[aqui](https://x.pt)" → "https://x.pt", "`a@b.pt`" → "a@b.pt".
- */
-function plainLinks(text: string): string {
-  return text
-    .replace(/\[([^\]]*)\]\((mailto:|tel:)?([^)\s]+)\)/g, (_, label: string, scheme, target: string) =>
-      scheme === "tel:" ? label : target,
-    )
-    .replace(/`([^`]*)`/g, "$1");
 }
 
 /** Renders the small subset of Markdown the model uses (paragraphs, bullets, bold). */
@@ -109,18 +103,7 @@ function speak(text: string, onEnd?: () => void) {
   if (!canSpeak()) return;
   const synth = window.speechSynthesis;
   synth.cancel();
-  const utterance = new SpeechSynthesisUtterance(
-    speakablePhoneNumbers(
-      plainLinks(text)
-        .replace(/[*#•]/g, "")
-        .replace(/https?:\/\/\S+/g, "o link indicado")
-        // Keep Portuguese contractions correct: "em o link" → "no link", etc.
-        .replace(/\bem o link/g, "no link")
-        .replace(/\bde o link/g, "do link")
-        .replace(/\ba o link/g, "ao link")
-        .replace(/\bpor o link/g, "pelo link"),
-    ),
-  );
+  const utterance = new SpeechSynthesisUtterance(toSpeakableText(text));
   utterance.lang = "pt-PT";
   const voices = synth.getVoices();
   utterance.voice =
@@ -168,6 +151,7 @@ export default function Chat() {
   const [seconds, setSeconds] = useState(0);
   const [transcribing, setTranscribing] = useState(false);
   const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
+  const [preparingIndex, setPreparingIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Shown again on every visit, so the safety notice is never hidden by default.
   const [showInfo, setShowInfo] = useState(true);
@@ -180,6 +164,10 @@ export default function Chat() {
   messagesRef.current = messages;
   // Lets "Nova conversa" cancel an answer that is still loading.
   const requestRef = useRef<AbortController | null>(null);
+  // AI voice: one audio player, reused, and the audio of each answer kept for this visit.
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioCacheRef = useRef(new Map<number, string>());
+  const playIdRef = useRef(0);
 
   // Follow the conversation, but leave the welcome screen at the top.
   useEffect(() => {
@@ -190,8 +178,11 @@ export default function Chat() {
   // Some browsers load speech voices asynchronously.
   useEffect(() => {
     if (canSpeak()) window.speechSynthesis.getVoices();
+    const cache = audioCacheRef.current;
     return () => {
       if (canSpeak()) window.speechSynthesis.cancel();
+      audioRef.current?.pause();
+      cache.forEach((url) => URL.revokeObjectURL(url));
     };
   }, []);
 
@@ -203,14 +194,72 @@ export default function Chat() {
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }, [input]);
 
-  function toggleSpeak(index: number, text: string) {
-    if (speakingIndex === index) {
-      window.speechSynthesis.cancel();
-      setSpeakingIndex(null);
-      return;
+  /**
+   * Phones only let audio play right after a tap. Calling this during a tap
+   * "unlocks" the shared player, so an answer can still be read when it arrives later.
+   */
+  function unlockAudio() {
+    if (!audioRef.current) audioRef.current = new Audio();
+    const audio = audioRef.current;
+    if (!audio.src || audio.paused) {
+      audio.src = SILENT_WAV;
+      audio.play().catch(() => {});
     }
-    setSpeakingIndex(index);
-    speak(text, () => setSpeakingIndex((current) => (current === index ? null : current)));
+  }
+
+  function stopSpeaking() {
+    playIdRef.current++;
+    audioRef.current?.pause();
+    if (canSpeak()) window.speechSynthesis.cancel();
+    setSpeakingIndex(null);
+    setPreparingIndex(null);
+  }
+
+  /** Reads an answer with the natural AI voice, or the device voice if that fails. */
+  async function playAnswer(index: number, message: Message) {
+    stopSpeaking();
+    const playId = playIdRef.current;
+    const done = () => setSpeakingIndex((c) => (c === index ? null : c));
+    const useDeviceVoice = () => {
+      if (!canSpeak()) return;
+      setSpeakingIndex(index);
+      speak(message.text, done);
+    };
+    if (!message.speechToken) return useDeviceVoice();
+
+    setPreparingIndex(index);
+    try {
+      let url = audioCacheRef.current.get(index);
+      if (!url) {
+        const res = await fetch("/api/speak", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: message.text, token: message.speechToken }),
+        });
+        if (!res.ok) throw new Error(`speak ${res.status}`);
+        url = URL.createObjectURL(await res.blob());
+        audioCacheRef.current.set(index, url);
+      }
+      if (playId !== playIdRef.current) return; // stopped or another answer chosen
+
+      if (!audioRef.current) audioRef.current = new Audio();
+      const audio = audioRef.current;
+      audio.onended = done;
+      audio.onerror = done;
+      audio.src = url;
+      await audio.play();
+      setSpeakingIndex(index);
+    } catch {
+      if (playId === playIdRef.current) useDeviceVoice();
+    } finally {
+      setPreparingIndex((c) => (c === index ? null : c));
+    }
+  }
+
+  function toggleSpeak(index: number, message: Message) {
+    if (speakingIndex === index || preparingIndex === index) return stopSpeaking();
+    unlockAudio();
+    playAnswer(index, message);
   }
 
   async function send(text: string, fromVoice = false) {
@@ -239,14 +288,10 @@ export default function Chat() {
       if (controller.signal.aborted) return;
       if (!res.ok) throw new Error(data.error ?? "Ocorreu um erro. Tente novamente.");
 
-      const reply: Message = { role: "assistant", text: data.text };
+      const reply: Message = { role: "assistant", text: data.text, speechToken: data.speechToken };
       setMessages([...history, reply]);
       // Questions asked by voice are answered out loud.
-      if (fromVoice) {
-        const index = history.length;
-        setSpeakingIndex(index);
-        speak(data.text, () => setSpeakingIndex((c) => (c === index ? null : c)));
-      }
+      if (fromVoice) playAnswer(history.length, reply);
     } catch (err) {
       if (controller.signal.aborted) return;
       // Put the question back in the box so it can be sent again.
@@ -271,8 +316,9 @@ export default function Chat() {
     requestRef.current?.abort();
     requestRef.current = null;
     setBusy(false);
-    if (canSpeak()) window.speechSynthesis.cancel();
-    setSpeakingIndex(null);
+    stopSpeaking();
+    audioCacheRef.current.forEach((url) => URL.revokeObjectURL(url));
+    audioCacheRef.current.clear();
     setMessages([]);
     setInput("");
     setError(null);
@@ -280,8 +326,8 @@ export default function Chat() {
 
   async function startRecording() {
     setError(null);
-    if (canSpeak()) window.speechSynthesis.cancel();
-    setSpeakingIndex(null);
+    stopSpeaking();
+    unlockAudio();
 
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
       setError("Este navegador não permite usar o microfone. Pode escrever a sua pergunta.");
@@ -342,6 +388,7 @@ export default function Chat() {
   }
 
   function stopRecording() {
+    unlockAudio();
     if (recorderRef.current?.state === "recording") recorderRef.current.stop();
   }
 
@@ -404,10 +451,18 @@ export default function Chat() {
               {renderText(m.text)}
               {m.role === "assistant" && (
                 <div className="bubble-actions">
-                  {canSpeak() && (
-                    <button className="listen" onClick={() => toggleSpeak(i, m.text)}>
-                      {speakingIndex === i ? <StopIcon /> : <SpeakerIcon />}
-                      {speakingIndex === i ? "Parar" : "Ouvir"}
+                  {(m.speechToken || canSpeak()) && (
+                    <button
+                      className="listen"
+                      onClick={() => toggleSpeak(i, m)}
+                      aria-busy={preparingIndex === i}
+                    >
+                      {speakingIndex === i || preparingIndex === i ? <StopIcon /> : <SpeakerIcon />}
+                      {preparingIndex === i
+                        ? "A preparar…"
+                        : speakingIndex === i
+                          ? "Parar"
+                          : "Ouvir"}
                     </button>
                   )}
                 </div>

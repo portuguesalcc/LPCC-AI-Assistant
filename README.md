@@ -27,7 +27,8 @@ Browser (chat page) ──▶ /api/chat ──▶ Gemini + File Search ──▶
 | `app/api/transcribe` | Turns voice recordings into text |
 | `app/api/sync` | Mirrors the Drive folder into File Search |
 | `app/api/diagnose` | Admin health check: tests each Gemini model with File Search |
-| `lib/speech.ts` | Makes phone numbers read digit by digit in voice answers |
+| `app/api/speak` | Reads an answer aloud with a natural Gemini voice (WAV audio) |
+| `lib/speech.ts` | Prepares text for reading aloud (links, phone numbers digit by digit) |
 | `lib/prompt.ts` | The assistant's rules (tone, safety, "I don't know" text) |
 
 ## Images
@@ -63,6 +64,8 @@ reads them.
 - **Admin password:** after 10 wrong attempts from the same connection, admin access is blocked
   for 15 minutes. Use a long, unique `ADMIN_SYNC_SECRET`.
 - **Voice uploads:** only audio files up to 5 MB are accepted.
+- **Read-aloud:** each answer carries a server signature; `/api/speak` only reads signed answers,
+  so it can't be used as a free text-to-speech service. About 30 readings per person every 5 minutes.
 - **Drive sync:** files over 50 MB or in unsupported formats are skipped and listed in the result.
 
 ## Setup (use the **portuguesalcc@gmail.com** Google account)
@@ -101,6 +104,9 @@ Production and Preview:
 | `CRON_SECRET` | Any long random text (Vercel uses it for the daily sync) |
 | `ADMIN_SYNC_SECRET` | A password for the `/admin` page |
 
+Optional voice settings: `GEMINI_TTS_VOICE` (default `Sulafat`, a warm voice; any of Gemini's
+prebuilt voices works) and `GEMINI_TTS_MODEL` (tried before the built-in list).
+
 Optional: `GEMINI_MODEL` (tried first, before the built-in list: `gemini-3.5-flash`, then `gemini-3-flash-preview`, then `gemini-3.1-flash-lite`) and `HELPLINE_TEXT` (who to contact in
 "I don't know" answers).
 
@@ -127,7 +133,9 @@ allows one scheduled run per day. Use `/admin` when you need a change to appear 
 
 - **Rate limits are per server instance.** They stop casual abuse, not a determined attacker. For a strict limit, add a rate-limit rule in Vercel → Firewall.
 - **Strict "I don't know".** Greetings like "Olá" also get the "não encontrei" message, because only document-backed answers are shown. That's on purpose.
-- **Read-aloud voice quality depends on the device.** It uses the browser's built-in voices.
+- **Read-aloud uses Gemini's natural voices**, which cost a little per answer and take a few
+  seconds to prepare. Each answer's audio is kept while the page is open, so replaying is free.
+  If the AI voice fails, the device's built-in voice is used instead.
 
 ## Development
 

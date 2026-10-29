@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { rejectUnlessSecret } from "@/lib/admin-auth";
-import { GEMINI_MODELS, THINKING_CONFIG } from "@/lib/config";
+import { GEMINI_MODELS, THINKING_CONFIG, TTS_MODELS, TTS_VOICE } from "@/lib/config";
 import { gemini, getStoreName } from "@/lib/gemini";
 import { SYSTEM_PROMPT } from "@/lib/prompt";
 
@@ -50,6 +50,30 @@ async function testModel(storeName: string, model: string) {
   }
 }
 
+// Checks that a natural voice model can read a short sentence.
+async function testVoice(model: string) {
+  const started = Date.now();
+  const took = () => `${((Date.now() - started) / 1000).toFixed(1)}s`;
+  try {
+    const response = await gemini().models.generateContent({
+      model,
+      contents: [{ role: "user", parts: [{ text: "Olá, sou o assistente virtual da Liga." }] }],
+      config: {
+        responseModalities: ["AUDIO"],
+        speechConfig: {
+          languageCode: "pt-PT",
+          voiceConfig: { prebuiltVoiceConfig: { voiceName: TTS_VOICE } },
+        },
+        httpOptions: { timeout: TEST_TIMEOUT_MS },
+      },
+    });
+    const audio = response.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data);
+    return { model, voice: TTS_VOICE, ok: Boolean(audio), took: took() };
+  } catch (err) {
+    return { model, voice: TTS_VOICE, ok: false, took: took(), error: message(err).slice(0, 300) };
+  }
+}
+
 // Admin-only health check: runs the same steps as the chat and reports what fails.
 export async function POST(request: Request) {
   const denied = rejectUnlessSecret(
@@ -84,7 +108,10 @@ export async function POST(request: Request) {
   if (storeName) {
     const name = storeName;
     // The models the chat falls back through, tested side by side.
-    report.modelTests = await Promise.all(GEMINI_MODELS.map((model) => testModel(name, model)));
+    [report.modelTests, report.voiceTests] = await Promise.all([
+      Promise.all(GEMINI_MODELS.map((model) => testModel(name, model))),
+      Promise.all(TTS_MODELS.map((model) => testVoice(model))),
+    ]);
   }
 
   return NextResponse.json(report);
